@@ -1,37 +1,105 @@
-name: Terraform Transit Gateway Module
+name: terraform-module-mysql-management
 #logo: logo/logo.jpg
 badges:
   - name: Latest Release
-    image: https://img.shields.io/github/release/<owner/repo>.svg?style=for-the-badge
-    url: https://github.com/<owner/repo>/releases/latest
+    image: https://img.shields.io/github/release/cloudopsworks/terraform-module-mysql-management.svg?style=for-the-badge
+    url: https://github.com/cloudopsworks/terraform-module-mysql-management/releases/latest
   - name: Last Updated
-    image: https://img.shields.io/github/last-commit/<owner/repo>.svg?style=for-the-badge
-    url: https://github.com/<owner/repo>/commits
+    image: https://img.shields.io/github/last-commit/cloudopsworks/terraform-module-mysql-management.svg?style=for-the-badge
+    url: https://github.com/cloudopsworks/terraform-module-mysql-management/commits
 
 license: "APACHE2"
 
 copyrights:
   - name: "Cloud Ops Works LLC"
     url: "https://cloudopsworks.co"
-    year: "2026"
+    year: "2021"
 
-github_repo: <owner/repo>
+github_repo: cloudopsworks/terraform-module-mysql-management
 
 description: |-
-  <description>
+  Cloud-agnostic Terraform base module for MySQL database, user, and grant management.
+  Designed to be called from cloud-specific management modules (AWS, GCP, Azure) via
+  `module "db" { providers = { mysql = mysql } }`. Manages MySQL databases, users, and
+  privilege grants (owner / readwrite / readonly) with optional time-based password rotation.
 
 # Introduction to the project
 introduction: |-
-#  This is an introduction.
+  This module provides a cloud-agnostic way to manage MySQL databases and users using the
+  `winebarrel/mysql` Terraform provider. It does not include any cloud provider configuration —
+  the `mysql` provider must be passed in from the calling (cloud-specific) module.
+
+  Resources managed:
+  - `mysql_database` — one per entry in `var.databases`
+  - `mysql_user` + `random_password` — one per entry in `var.users`
+  - `mysql_grant` — per (user, database) pair, with privilege sets matching the grant type
+  - `time_rotating` — optional, triggers password rotation after `password_rotation_period` days
 
 # How to use this project
 usage: |-
+  Call this module from a cloud-specific management module, passing in a configured `mysql`
+  provider alias:
+
+  ```hcl
+  # terragrunt.hcl (cloud module)
+  terraform {
+    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v1.0.0"
+  }
+
+  inputs = {
+    org = {
+      organization_name = "myorg"
+      organization_unit = "platform"
+      environment_type  = "production"
+      environment_name  = "prod"
+    }
+
+    databases = {
+      app = {
+        name      = "appdb"          # (Required) Database name
+        charset   = "utf8mb4"        # (Optional) Default: "utf8mb4"
+        collation = "utf8mb4_unicode_ci"  # (Optional) Default: "utf8mb4_unicode_ci"
+      }
+    }
+
+    users = {
+      app_owner = {
+        name      = "appowner"       # (Required) MySQL user name
+        host      = "%"              # (Optional) Host restriction. Default: "%"
+        grant     = "owner"          # (Required) owner | readwrite | readonly
+        databases = ["appdb"]        # (Required) List of database names to grant on
+      }
+      app_reader = {
+        name      = "appreader"
+        host      = "%"
+        grant     = "readonly"
+        databases = ["appdb"]
+      }
+    }
+
+    password_rotation_period = 90    # (Optional) Days between password rotations. Default: 0 (disabled)
+    force_reset              = false # (Optional) Force password reset on next apply. Default: false
+  }
+  ```
 
 # Example usage
 examples: |-
+  See `usage` above for a full Terragrunt example. The module exports the following outputs
+  for use by the cloud wrapper module to store passwords in a secret manager:
+
+  - `owner_passwords` (sensitive) — map of user_ref → password for owner users
+  - `owner_usernames` — map of user_ref → MySQL username for owner users
+  - `user_passwords` (sensitive) — map of user_ref → password for non-owner users
+  - `user_usernames` — map of user_ref → MySQL username for non-owner users
+  - `databases` — map of db_ref → `{ name }` for all managed databases
+  - `users` — map of user_ref → `{ name, grant }` for all managed users
 
 # How to get started quickly
 quickstart: |-
+  1. Reference this module from your cloud-specific Terragrunt stack, providing a configured
+     `mysql` provider alias.
+  2. Define your `databases` and `users` maps in `inputs.yaml` (see `.boilerplate/inputs.yaml`).
+  3. Run `terragrunt apply`.
 
 include:
   - "docs/targets.md"

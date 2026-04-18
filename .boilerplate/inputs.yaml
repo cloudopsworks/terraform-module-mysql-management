@@ -1,1 +1,31 @@
 # Module configuration
+
+# databases: map of MySQL databases to create
+# Each key is a db_ref used internally by the module.
+databases: {}
+#   app:
+#     name: "appdb"                      # (Required) Database name
+#     charset: "utf8mb4"                 # (Optional) Character set. Default: "utf8mb4"
+#     collation: "utf8mb4_unicode_ci"    # (Optional) Collation. Default: "utf8mb4_unicode_ci"
+
+# users: map of MySQL users to create
+# Each key is a user_ref used internally by the module.
+users: {}
+#   app_owner:
+#     name: "appowner"       # (Required) MySQL user name
+#     host: "%"              # (Optional) Host restriction. Default: "%"
+#     grant: "owner"         # (Required) Grant type: owner | readwrite | readonly
+#     databases: ["appdb"]   # (Required) List of database names to grant access on
+#   app_reader:
+#     name: "appreader"      # (Required) MySQL user name
+#     host: "%"              # (Optional) Host restriction. Default: "%"
+#     grant: "readonly"      # (Required) Grant type: owner | readwrite | readonly
+#     databases: ["appdb"]   # (Required) List of database names to grant access on
+
+# password_rotation_period: (Optional) Number of days between automatic password rotations.
+# Set to 0 to disable time-based rotation. Default: 0
+password_rotation_period: 0
+
+# force_reset: (Optional) Set to true to force password replacement on the next apply.
+# Resets to false after the passwords have been rotated. Default: false
+force_reset: false
