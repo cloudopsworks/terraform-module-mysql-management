@@ -69,7 +69,7 @@ provider alias:
 ```hcl
 # terragrunt.hcl (cloud module)
 terraform {
-  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v1.0.0"
+  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v1.0.1"
 }
 
 inputs = {
@@ -92,14 +92,23 @@ inputs = {
     app_owner = {
       name      = "appowner"       # (Required) MySQL user name
       host      = "%"              # (Optional) Host restriction. Default: "%"
-      grant     = "owner"          # (Required) owner | readwrite | readonly
-      databases = ["appdb"]        # (Required) List of database names to grant on
+      grant     = "owner"          # (Required) Grant type: owner | readwrite | readonly
+      #                            #   owner     → ALL privileges on the database(s)
+      #                            #   readwrite → SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER
+      #                            #   readonly  → SELECT only
+      databases = ["appdb"]        # (Required) List of database names to grant access on
+    }
+    app_writer = {
+      name      = "appwriter"      # (Required) MySQL user name
+      host      = "%"              # (Optional) Host restriction. Default: "%"
+      grant     = "readwrite"      # (Required) Grant type
+      databases = ["appdb"]        # (Required) List of database names to grant access on
     }
     app_reader = {
-      name      = "appreader"
-      host      = "%"
-      grant     = "readonly"
-      databases = ["appdb"]
+      name      = "appreader"      # (Required) MySQL user name
+      host      = "%"              # (Optional) Host restriction. Default: "%"
+      grant     = "readonly"       # (Required) Grant type
+      databases = ["appdb"]        # (Required) List of database names to grant access on
     }
   }
 
@@ -121,12 +130,22 @@ inputs = {
 See `usage` above for a full Terragrunt example. The module exports the following outputs
 for use by the cloud wrapper module to store passwords in a secret manager:
 
-- `owner_passwords` (sensitive) — map of user_ref → password for owner users
-- `owner_usernames` — map of user_ref → MySQL username for owner users
-- `user_passwords` (sensitive) — map of user_ref → password for non-owner users
-- `user_usernames` — map of user_ref → MySQL username for non-owner users
-- `databases` — map of db_ref → `{ name }` for all managed databases
-- `users` — map of user_ref → `{ name, grant }` for all managed users
+| Output | Sensitive | Description |
+|---|---|---|
+| `owner_passwords` | yes | `map(user_ref → password)` for `owner`-grant users |
+| `owner_usernames` | no | `map(user_ref → MySQL username)` for `owner`-grant users |
+| `user_passwords` | yes | `map(user_ref → password)` for `readwrite`/`readonly` users |
+| `user_usernames` | no | `map(user_ref → MySQL username)` for `readwrite`/`readonly` users |
+| `databases` | no | `map(db_ref → { name })` for all managed databases |
+| `users` | no | `map(user_ref → { name, grant })` for all managed users |
+
+**Grant privilege sets**
+
+| Grant type | MySQL privileges granted |
+|---|---|
+| `owner` | `ALL` |
+| `readwrite` | `SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER` |
+| `readonly` | `SELECT` |
 
 
 
@@ -155,9 +174,9 @@ Available targets:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | ~> 1.10 |
-| <a name="provider_random"></a> [random](#provider\_random) | ~> 3.4 |
-| <a name="provider_time"></a> [time](#provider\_time) | ~> 0.13 |
+| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | 1.10.6 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.8.1 |
+| <a name="provider_time"></a> [time](#provider\_time) | 0.13.1 |
 
 ## Modules
 
