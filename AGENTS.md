@@ -14,12 +14,14 @@ This document provides instructions for AI Agents working with the implementatio
  - Azure
  - MongoDB Atlas
  - Github
-
+- **Not a template when:** under the following conditions, the repository is not a template 
+  - The repository contains a `versions.tf` file at the root level, indicating that it has been initialized for a specific provider.
+  - The repository has a `.cloudopsworks/.provider` file indicating the current provider in use.
 
 ## Implementation Repository Guidelines
 
-- **Use make as been provided**: All commands should be run from the root of the repository.
-- **Avoid to modify**: Avoid modifying the following: 
+- **Use make as provided**: All commands should be run from the root of the repository.
+- **Avoid modifying**: Avoid modifying the following: 
   - Any files originating from the cloud provider boilerplate (e.g., `aws.tf`, `google.tf`, `azurerm.tf`, `variables-azurerm.tf`, `locals.tf`) in `.cloudopsworks/boilerplate/` (except `versions.tf`).
   - Anything under `.cloudopsworks/boilerplate/`
   - `locals-vars.tf`, `variables.tf`, `AGENTS.md`, `CLAUDE.md`, `.github/**`, `Makefile`, `.gitignore`, `gitversion.yaml`
@@ -62,6 +64,15 @@ This document provides instructions for AI Agents working with the implementatio
   #     Distributed Under Apache v2.0 License
   #
   ```
+- **Outputs**:
+  - Place all module outputs in `outputs.tf` at the root of the module.
+  - Every `outputs.tf` must start with the mandatory copyright header.
+  - Provide a `description` for every output — no empty descriptions.
+  - Mark outputs containing secrets or tokens with `sensitive = true`.
+  - Export specific attributes, not entire resource objects (e.g., prefer `resource.this.id` over `resource.this`).
+  - Use `snake_case` names consistent with the module's variable naming.
+  - Group related outputs together with a blank line between groups.
+  - Avoid outputs that duplicate inputs unless the provider transforms the value.
 - **Formatting, Validation & Linting**:
   - Formatting: `make fmt`
   - Validation & Linting: `make lint`
@@ -72,6 +83,7 @@ This document provides instructions for AI Agents working with the implementatio
 ## Versioning Management
 
 Module versioning follows GitHub Flow — a simplified branching model where feature branches are created from and merged back into `master`. Use `make` targets whenever available for branch and release operations.
+- There is a skill related to this template module and their implementations, it can be found in the [Claude Code Skills - cw-release](https://github.com/cloudopsworks/claude-code-skills/tree/main/cw-release) can be used in any agent anyway, install and use it.
 
 ### General Rules
 
@@ -90,11 +102,13 @@ Module versioning follows GitHub Flow — a simplified branching model where fea
 
 To trigger the correct version bump in CI, include a semver annotation in your commit message or PR description:
 
-| Change Type             | Annotation keywords                                           |
-|-------------------------|---------------------------------------------------------------|
-| Major / breaking change | `+semver: major`                                              |
-| Minor / feature change  | `+semver: minor` or `+semver: feature` or `+semver: breaking` |
-| Fix / patch change      | `+semver: fix` or `+semver: patch`                            |
+| Change Type        | Annotation keywords                                           |
+|--------------------|---------------------------------------------------------------|
+| Major change only  | `+semver: major`                                              |
+| Minor / feature    | `+semver: minor` or `+semver: feature` or `+semver: breaking` |
+| Fix / patch        | `+semver: fix` or `+semver: patch` or `+semver: hotfix`       |
+
+> **Note:** `+semver: breaking` triggers a **MINOR** bump (per GitVersion config), not MAJOR. Use `+semver: major` explicitly for breaking/incompatible changes that require a MAJOR version bump.
 
 Example commit messages:
 ```
@@ -102,6 +116,11 @@ feat: add support for VPC endpoints +semver: minor
 fix: correct IAM policy ARN +semver: fix
 refactor!: remove deprecated outputs +semver: breaking
 ```
+
+### Module Dependency Management
+- Honor git submodules for module dependencies with ref to the latest release tag possible.
+- Lookup for the latest version of each module dependency when updating the submodule, specially under feature branches.
+- Note that the `make repos/upgrade` command will pull the latest template version, but it does not automatically update module dependencies. Always check and update submodule references as needed when upgrading the template or making significant changes.
 
 ### New Module Features and Provider Version Upgrades
 
@@ -116,9 +135,10 @@ All new features and provider version upgrades branch directly from `master` usi
    make fmt
    make lint
    ```
-3. Finish the feature — this merges it back into `master` via pull request:
+3. **Publish first**, then finish — the finish step requires the branch to exist on the remote:
    ```sh
-   make gitflow/feature/finish-no-develop:<feature-name>
+   make gitflow/feature/publish:<feature-name>         # push branch to remote (required before finish)
+   make gitflow/feature/finish-no-develop:<feature-name>  # creates the PR
    ```
 
 For provider upgrades, increment the semver digit accordingly: **MAJOR** for breaking provider changes (e.g., AWS `4.x` → `5.x`), **MINOR** for backwards-compatible upgrades.
@@ -173,16 +193,18 @@ Key rules:
 
 ### Summary Table
 
-| Change Type                             | Branch Type | Merges Into | Semver Impact | Annotation                          |
-|-----------------------------------------|-------------|-------------|---------------|-------------------------------------|
-| Workflow version upgrade (patch)        | `hotfix`    | `master`    | PATCH         | `+semver: patch`                    |
-| Workflow version upgrade (minor/major)  | `feature`   | `master`    | MINOR         | `+semver: patch`                    |
-| Documentation fix / inputs.yaml sync    | `hotfix`    | `master`    | PATCH         | `+semver: patch`                    |
-| Provider major version upgrade          | `feature`   | `master`    | MAJOR         | `+semver: breaking`                 |
-| Provider minor/patch version upgrade    | `feature`   | `master`    | MINOR / PATCH | `+semver: minor` / `+semver: patch` |
-| New module feature                      | `feature`   | `master`    | MINOR         | `+semver: feature`                  |
-| Bug fix                                 | `feature`   | `master`    | PATCH         | `+semver: fix`                      |
-| Breaking / incompatible change          | `feature`   | `master`    | MAJOR         | `+semver: breaking`                 |
+| Change Type                                      | Branch Type | Merges Into | Make Target             | Semver Impact | Annotation                          |
+|--------------------------------------------------|-------------|-------------|-------------------------|---------------|-------------------------------------|
+| Workflow version upgrade (patch)                 | `hotfix`    | `master`    | `make repos/upgrade`    | PATCH         | `+semver: patch`                    |
+| Workflow version upgrade (minor)                 | `feature`   | `master`    | `make repos/upgrade`    | MINOR         | `+semver: minor`                    |
+| Workflow version upgrade (major)                 | `feature`   | `master`    | `make repos/upgrade/major` | MAJOR      | `+semver: major`                    |
+| Documentation fix / inputs.yaml sync            | `hotfix`    | `master`    | —                       | PATCH         | `+semver: patch`                    |
+| Provider major version upgrade                   | `feature`   | `master`    | —                       | MAJOR         | `+semver: major`                    |
+| Provider minor/patch version upgrade             | `feature`   | `master`    | —                       | MINOR / PATCH | `+semver: minor` / `+semver: patch` |
+| New module feature                               | `feature`   | `master`    | —                       | MINOR         | `+semver: feature`                  |
+| Bug fix                                          | `feature`   | `master`    | —                       | PATCH         | `+semver: fix`                      |
+| Breaking / incompatible change (MAJOR bump)      | `feature`   | `master`    | —                       | MAJOR         | `+semver: major`                    |
+| Breaking / incompatible change (minor-compatible)| `feature`   | `master`    | —                       | MINOR         | `+semver: breaking`                 |
 
 
 ## Documentation Guidelines
@@ -191,6 +213,19 @@ Key rules:
 > Generated documentation must be human-legible; tables are encouraged for clarity.
 
 - **Source file**: Documentation is maintained in `README.yaml`. Inner sections may use Markdown formatting.
+- **Badges**:
+  - If the module has a public repository, include badges for Latest Release and Last Updated, linking to the appropriate GitHub owner/repo.
+  - Locate it between the `name` or `logo` and `license` fields.
+  - Template:
+    ```yaml
+    badges:
+      - name: Latest Release
+        image: https://img.shields.io/github/release/<owner/repo>.svg?style=for-the-badge
+        url: https://github.com/<owner/repo>/releases/latest
+      - name: Last Updated
+        image: https://img.shields.io/github/last-commit/<owner/repo>.svg?style=for-the-badge
+        url: https://github.com/<owner/repo>/commits
+    ```
 - **Inline variable documentation**:
   - Complete inline documentation in `variables-module.tf` (or its renamed equivalent; there may be multiple `variables-*.tf` files).
   - Document each variable attribute in YAML format within the variable declaration block.
@@ -206,12 +241,45 @@ Key rules:
   - `name`
   - `description`
   - `introduction`
-  - `usage` — write examples using Terragrunt HCL; avoid plain Terraform HCL. Include all module variables with their full inline-documented YAML structure.
+  - `usage` — write examples using Terragrunt HCL; avoid plain Terraform HCL.
+    - Lead with the Terragrunt scaffolding workflow (see [Terragrunt Scaffolding in Usage Examples](#terragrunt-scaffolding-in-usage-examples) below).
+    - After scaffolding, show the resulting `inputs.yaml` with all module-specific variables from `.boilerplate/inputs.yaml`, fully commented per the `(Required)`/`(Optional)` style.
+    - Show the rendered `terragrunt.hcl` as generated by scaffold — including the `locals` block that loads `inputs.yaml` as `local.local_vars` and the `inputs` block mapping each variable. Do not hand-author the `terragrunt.hcl` from scratch; represent what scaffold produces.
+    - Include all module variables with their full inline-documented YAML structure mirroring `.boilerplate/inputs.yaml`.
   - `examples` and `quickstart`
 - **Updates**: Apply the same criteria above whenever new variables or resources are added to the module.
   - copyrights.year: if not specified or blank, set "2021", should be an year not a range, if there is a year specified leave it as is.
   - badges: adjust the badge.image links to point to the correct repository (owner/repo).
 - **README.md generation**: Run `make readme` as the **last step** after all documentation updates are complete.
+
+### Terragrunt Scaffolding in Usage Examples
+
+When documenting `usage` in `README.yaml`, the example must show operators how to bootstrap a new deployment using Terragrunt's built-in scaffold command. See the official reference: https://docs.terragrunt.com/reference/cli/commands/scaffold
+
+Rules:
+- **Never use `--working-dir`** — it is not a valid flag for the scaffold command.
+- **Always create the target directory first** before running scaffold. Scaffold writes its output into the current working directory, so the operator must create and enter it beforehand.
+- The scaffold command sources `.boilerplate/boilerplate.yml` to generate `terragrunt.hcl`, `inputs.yaml`, and `local-tags.json` in the target directory.
+
+**Canonical scaffolding workflow to include in `usage`:**
+
+```sh
+# 1. Create and enter the target deployment directory
+mkdir -p <environment>/<region>/<spoke>/<module-name>
+cd <environment>/<region>/<spoke>/<module-name>
+
+# 2. Scaffold the module (do NOT use --working-dir)
+terragrunt scaffold github.com/<owner>/<repo>
+
+# 3. Edit inputs.yaml with deployment-specific values
+#    (all keys and comments are pre-populated from .boilerplate/inputs.yaml)
+vi inputs.yaml
+
+# 4. Apply
+terragrunt apply
+```
+
+After the commands, include an annotated example of the generated `inputs.yaml` (using the exact keys and `(Required)`/`(Optional)` comments from `.boilerplate/inputs.yaml`) and the generated `terragrunt.hcl` showing how `local.local_vars` wires `inputs.yaml` into the `inputs` block.
 
 ### `.boilerplate/inputs.yaml` Guidelines
 
@@ -232,3 +300,4 @@ The `.boilerplate/inputs.yaml` file is the per-deployment configuration file loa
 - **Complex objects**: Expand all sub-keys of object variables (e.g., `settings`) as commented lines, even when the default is `{}`. This makes all available options visible to the operator without them needing to read the Terraform source.
 - **Module transformations**: If the module transforms an input value before passing it to the provider (e.g., converting a region string to uppercase-underscore format for the Atlas API), document both the expected input format and the resulting API value in the comment.
 - **Sync on change**: Whenever a variable is added, removed, or modified in `variables-*.tf`, update `.boilerplate/inputs.yaml` accordingly in the same commit.
+- **Scaffolding output**: This file is the template that `terragrunt scaffold` copies into new deployment directories. Every key, comment, and default must be accurate — operators fill in values here without reading the Terraform source.
