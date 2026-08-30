@@ -60,9 +60,11 @@ Resources managed:
 
 **Cloud-wrapper compatibility**
 
-Wrapper modules can pass `password`, `resource_group`, and `manage_grants` per user. This
-supports incremental adoption without rotating externally managed credentials or changing
-existing `for_each` keys. Databases and users also support declarative `import` settings.
+Wrapper modules can pass `password`, `resource_group`, and `manage_grants` per user. The
+separate `owner_users` map preserves an independent owner key space, including configurations
+where the same key also exists in `users`. This supports incremental adoption without rotating
+externally managed credentials or changing existing `for_each` keys. Databases and users also
+support declarative `import` settings.
 
 **Upgrading from v1.x**
 
@@ -100,7 +102,7 @@ provider alias:
 ```hcl
 # terragrunt.hcl (cloud module)
 terraform {
-  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.1.0"
+  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.2.0"
 }
 
 inputs = {
@@ -149,6 +151,9 @@ inputs = {
     }
   }
 
+  # Cloud wrappers can use a separate owner map when owner and regular-user keys overlap.
+  owner_users = {}
+
   password_rotation_period = 90    # (Optional) Days between password rotations. Default: 0 (disabled)
   force_reset              = false # (Optional) Force password reset on next apply. Default: false
 }
@@ -178,11 +183,12 @@ for use by the cloud wrapper module to store passwords in a secret manager:
 
 **Incremental wrapper migration**
 
-Set `resource_group` explicitly when a wrapper must preserve whether a user lives at
-`mysql_user.owner[<key>]` or `mysql_user.user[<key>]`. Supply `password` to keep password
-generation and rotation in a cloud secret integration, and set `manage_grants = false` when
-grants remain at their existing wrapper addresses. These controls are intended for stable
-`moved`-block migrations and are optional for direct module consumers.
+Use `owner_users` when a wrapper has independent owner and regular-user key spaces; the same key
+can safely exist in both `owner_users` and `users`. Set `resource_group` explicitly for owner
+entries retained in `users`. Supply `password` to keep password generation and rotation in a
+cloud secret integration, and set `manage_grants = false` when grants remain at their existing
+wrapper addresses. These controls are intended for stable `moved`-block migrations and are
+optional for direct module consumers.
 
 **Grant privilege sets**
 
@@ -253,6 +259,7 @@ Available targets:
 | <a name="input_force_reset"></a> [force\_reset](#input\_force\_reset) | (Optional) Force password reset on next apply. Default: false. | `bool` | `false` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
+| <a name="input_owner_users"></a> [owner\_users](#input\_owner\_users) | Optional owner-user map with an independent key space for state-compatible wrapper migrations. | `any` | `{}` | no |
 | <a name="input_password_rotation_period"></a> [password\_rotation\_period](#input\_password\_rotation\_period) | (Optional) Password rotation period in days. Default: 0. | `number` | `0` | no |
 | <a name="input_spoke_def"></a> [spoke\_def](#input\_spoke\_def) | Spoke ID Number, must be a 3 digit number | `string` | `"001"` | no |
 | <a name="input_users"></a> [users](#input\_users) | Map of MySQL users. See inline docs for full schema. | `any` | `{}` | no |

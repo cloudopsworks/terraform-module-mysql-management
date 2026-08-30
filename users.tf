@@ -9,18 +9,15 @@
 
 resource "time_rotating" "user" {
   for_each = {
-    for k, v in var.users : k => v
-    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user" &&
-    try(v.password, null) == null && var.password_rotation_period > 0
+    for k, v in local.users : k => v
+    if try(v.password, null) == null && var.password_rotation_period > 0
   }
   rotation_days = var.password_rotation_period
 }
 
 resource "random_password" "user" {
   for_each = {
-    for k, v in var.users : k => v
-    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user" &&
-    try(v.password, null) == null
+    for k, v in local.users : k => v if try(v.password, null) == null
   }
   length           = 25
   special          = true
@@ -38,10 +35,7 @@ resource "random_password" "user" {
 }
 
 resource "mysql_user" "user" {
-  for_each = {
-    for k, v in var.users : k => v
-    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user"
-  }
+  for_each           = local.users
   user               = try(each.value.name, each.key)
   host               = try(each.value.host, "%")
   plaintext_password = try(each.value.password, null) != null ? each.value.password : random_password.user[each.key].result
@@ -50,9 +44,7 @@ resource "mysql_user" "user" {
 
 import {
   for_each = {
-    for k, v in var.users : k => v
-    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user" &&
-    try(v.import, false)
+    for k, v in local.users : k => v if try(v.import, false)
   }
   to = mysql_user.user[each.key]
   id = try(each.value.name, each.key)

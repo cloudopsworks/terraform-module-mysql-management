@@ -34,6 +34,18 @@ users: {}
 #     manage_grants: true     # (Optional) Manage grants in this module. Default: true
 #     import: false           # (Optional) Import an existing user. Default: false
 
+# owner_users: independent owner-user map for state-compatible cloud wrappers.
+# Keys may overlap with users because the resources occupy separate state maps.
+owner_users: {}
+#   app:
+#     name: "appowner"        # (Required) MySQL owner user name
+#     host: "%"               # (Optional) Host restriction. Default: "%"
+#     password: null          # (Optional, sensitive) Externally managed password. Default: generated
+#     tls_option: "NONE"      # (Optional) MySQL TLS requirement. Default: provider default
+#     databases: ["appdb"]   # (Optional) Databases to grant. Default: []
+#     manage_grants: true     # (Optional) Manage grants in this module. Default: true
+#     import: false           # (Optional) Import an existing user. Default: false
+
 # password_rotation_period: (Optional) Number of days between automatic password rotations.
 # Set to 0 to disable time-based rotation. Default: 0
 password_rotation_period: 0
