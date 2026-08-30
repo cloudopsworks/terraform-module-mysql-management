@@ -42,14 +42,6 @@ resource "mysql_user" "user" {
   tls_option         = try(each.value.tls_option, null)
 }
 
-import {
-  for_each = {
-    for k, v in local.users : k => v if try(v.import, false)
-  }
-  to = mysql_user.user[each.key]
-  id = try(each.value.name, each.key)
-}
-
 resource "mysql_grant" "readwrite" {
   for_each = {
     for item in flatten([

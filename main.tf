@@ -30,14 +30,6 @@ resource "mysql_database" "this" {
   default_collation     = try(each.value.default_collation, each.value.collation, "utf8mb4_unicode_ci")
 }
 
-import {
-  for_each = {
-    for k, v in var.databases : k => v if try(v.create, true) && try(v.import, false)
-  }
-  to = mysql_database.this[each.key]
-  id = try(each.value.name, each.key)
-}
-
 resource "time_rotating" "owner" {
   for_each = {
     for k, v in local.owner_users : k => v
@@ -71,14 +63,6 @@ resource "mysql_user" "owner" {
   host               = try(each.value.host, "%")
   plaintext_password = try(each.value.password, null) != null ? each.value.password : random_password.owner[each.key].result
   tls_option         = try(each.value.tls_option, null)
-}
-
-import {
-  for_each = {
-    for k, v in local.owner_users : k => v if try(v.import, false)
-  }
-  to = mysql_user.owner[each.key]
-  id = try(each.value.name, each.key)
 }
 
 resource "mysql_grant" "owner" {

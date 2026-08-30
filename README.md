@@ -63,8 +63,9 @@ Resources managed:
 Wrapper modules can pass `password`, `resource_group`, and `manage_grants` per user. The
 separate `owner_users` map preserves an independent owner key space, including configurations
 where the same key also exists in `users`. This supports incremental adoption without rotating
-externally managed credentials or changing existing `for_each` keys. Databases and users also
-support declarative `import` settings.
+externally managed credentials or changing existing `for_each` keys. Because Terraform permits
+`import` blocks only in the root module, cloud wrappers retain root-level imports targeting the
+child resource addresses.
 
 **Upgrading from v1.x**
 
@@ -102,7 +103,7 @@ provider alias:
 ```hcl
 # terragrunt.hcl (cloud module)
 terraform {
-  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.2.0"
+  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.2.1"
 }
 
 inputs = {
@@ -119,7 +120,6 @@ inputs = {
       create    = true             # (Optional) Manage the database. Default: true
       charset   = "utf8mb4"        # (Optional) Default: "utf8mb4"
       collation = "utf8mb4_unicode_ci"  # (Optional) Default: "utf8mb4_unicode_ci"
-      import    = false            # (Optional) Import an existing database. Default: false
     }
   }
 
@@ -135,7 +135,6 @@ inputs = {
       # password       = "..."      # (Optional, sensitive) External password; generated when omitted
       resource_group = "owner"     # (Optional) Stable resource group. Default: derived from grant
       manage_grants  = true        # (Optional) Manage grants here. Default: true
-      import         = false       # (Optional) Import an existing user. Default: false
     }
     app_writer = {
       name      = "appwriter"      # (Required) MySQL user name

@@ -14,7 +14,6 @@
 #     create: true                        # (Optional) Whether to manage the database. Default: true.
 #     charset: "utf8mb4"                 # (Optional) Character set. Default: "utf8mb4".
 #     collation: "utf8mb4_unicode_ci"    # (Optional) Collation. Default: "utf8mb4_unicode_ci".
-#     import: false                       # (Optional) Import the database when it already exists. Default: false.
 variable "databases" {
   description = "Map of MySQL databases to create. See inline docs for full schema."
   type        = any
@@ -32,7 +31,6 @@ variable "databases" {
 #     tls_option: "NONE"         # (Optional) MySQL TLS requirement. Default: provider default.
 #     resource_group: "owner"    # (Optional) Stable resource group: owner | user. Default: derived from grant.
 #     manage_grants: true         # (Optional) Whether this module manages grants. Default: true.
-#     import: false               # (Optional) Import the user when it already exists. Default: false.
 variable "users" {
   description = "Map of MySQL users. See inline docs for full schema."
   type        = any
@@ -48,7 +46,6 @@ variable "users" {
 #     tls_option: "NONE"        # (Optional) MySQL TLS requirement. Default: provider default.
 #     databases: ["mydb"]       # (Optional) Databases to grant when manage_grants is true. Default: [].
 #     manage_grants: true        # (Optional) Whether this module manages grants. Default: true.
-#     import: false              # (Optional) Import the user when it already exists. Default: false.
 variable "owner_users" {
   description = "Optional owner-user map with an independent key space for state-compatible wrapper migrations."
   type        = any
