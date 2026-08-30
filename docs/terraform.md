@@ -11,9 +11,9 @@
 
 | Name | Version |
 |------|---------|
-| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | ~> 3.0 |
-| <a name="provider_random"></a> [random](#provider\_random) | ~> 3.4 |
-| <a name="provider_time"></a> [time](#provider\_time) | ~> 0.13 |
+| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | 3.0.94 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.9.0 |
+| <a name="provider_time"></a> [time](#provider\_time) | 0.14.1 |
 
 ## Modules
 

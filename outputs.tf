@@ -10,7 +10,11 @@
 output "owner_passwords" {
   description = "Map of user_ref → owner password (sensitive). Consumed by cloud modules for secret storage."
   sensitive   = true
-  value       = { for k, v in random_password.owner : k => v.result }
+  value = {
+    for k, v in var.users : k => (
+      try(v.password, null) != null ? v.password : random_password.owner[k].result
+    ) if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "owner"
+  }
 }
 
 output "owner_usernames" {
@@ -21,7 +25,11 @@ output "owner_usernames" {
 output "user_passwords" {
   description = "Map of user_ref → user password (sensitive). Consumed by cloud modules for secret storage."
   sensitive   = true
-  value       = { for k, v in random_password.user : k => v.result }
+  value = {
+    for k, v in var.users : k => (
+      try(v.password, null) != null ? v.password : random_password.user[k].result
+    ) if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user"
+  }
 }
 
 output "user_usernames" {

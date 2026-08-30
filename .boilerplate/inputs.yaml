@@ -5,8 +5,10 @@
 databases: {}
 #   app:
 #     name: "appdb"                      # (Required) Database name
+#     create: true                        # (Optional) Manage the database. Default: true
 #     charset: "utf8mb4"                 # (Optional) Character set. Default: "utf8mb4"
 #     collation: "utf8mb4_unicode_ci"    # (Optional) Collation. Default: "utf8mb4_unicode_ci"
+#     import: false                       # (Optional) Import an existing database. Default: false
 
 # users: map of MySQL users to create
 # Each key is a user_ref used internally by the module.
@@ -16,11 +18,21 @@ users: {}
 #     host: "%"              # (Optional) Host restriction. Default: "%"
 #     grant: "owner"         # (Required) Grant type: owner | readwrite | readonly
 #     databases: ["appdb"]   # (Required) List of database names to grant access on
+#     password: null          # (Optional, sensitive) Externally managed password. Default: generated
+#     tls_option: "NONE"      # (Optional) MySQL TLS requirement. Default: provider default
+#     resource_group: "owner" # (Optional) Stable state group: owner | user. Default: derived from grant
+#     manage_grants: true     # (Optional) Manage grants in this module. Default: true
+#     import: false           # (Optional) Import an existing user. Default: false
 #   app_reader:
 #     name: "appreader"      # (Required) MySQL user name
 #     host: "%"              # (Optional) Host restriction. Default: "%"
 #     grant: "readonly"      # (Required) Grant type: owner | readwrite | readonly
 #     databases: ["appdb"]   # (Required) List of database names to grant access on
+#     password: null          # (Optional, sensitive) Externally managed password. Default: generated
+#     tls_option: "NONE"      # (Optional) MySQL TLS requirement. Default: provider default
+#     resource_group: "user" # (Optional) Stable state group: owner | user. Default: derived from grant
+#     manage_grants: true     # (Optional) Manage grants in this module. Default: true
+#     import: false           # (Optional) Import an existing user. Default: false
 
 # password_rotation_period: (Optional) Number of days between automatic password rotations.
 # Set to 0 to disable time-based rotation. Default: 0

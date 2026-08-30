@@ -17,6 +17,8 @@ Cloud-agnostic Terraform base module for MySQL database, user, and grant managem
 Designed to be called from cloud-specific management modules (AWS, GCP, Azure) via
 `module "db" { providers = { mysql = mysql } }`. Manages MySQL databases, users, and
 privilege grants (owner / readwrite / readonly) with optional time-based password rotation.
+Cloud wrappers can preserve existing state keys by selecting the `owner` or `user` resource
+group, supplying externally managed passwords, and retaining grant ownership in the wrapper.
 
 
 ---
@@ -56,6 +58,12 @@ Resources managed:
 - `mysql_grant` — per (user, database) pair, with privilege sets matching the grant type
 - `time_rotating` — optional, triggers password rotation after `password_rotation_period` days
 
+**Cloud-wrapper compatibility**
+
+Wrapper modules can pass `password`, `resource_group`, and `manage_grants` per user. This
+supports incremental adoption without rotating externally managed credentials or changing
+existing `for_each` keys. Databases and users also support declarative `import` settings.
+
 **Upgrading from v1.x**
 
 Version 2.0 changes the MySQL provider source from `winebarrel/mysql` to `petoju/mysql`.
@@ -92,7 +100,7 @@ provider alias:
 ```hcl
 # terragrunt.hcl (cloud module)
 terraform {
-  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.0.0"
+  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.1.0"
 }
 
 inputs = {
@@ -106,8 +114,10 @@ inputs = {
   databases = {
     app = {
       name      = "appdb"          # (Required) Database name
+      create    = true             # (Optional) Manage the database. Default: true
       charset   = "utf8mb4"        # (Optional) Default: "utf8mb4"
       collation = "utf8mb4_unicode_ci"  # (Optional) Default: "utf8mb4_unicode_ci"
+      import    = false            # (Optional) Import an existing database. Default: false
     }
   }
 
@@ -120,6 +130,10 @@ inputs = {
       #                            #   readwrite → SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER
       #                            #   readonly  → SELECT only
       databases = ["appdb"]        # (Required) List of database names to grant access on
+      # password       = "..."      # (Optional, sensitive) External password; generated when omitted
+      resource_group = "owner"     # (Optional) Stable resource group. Default: derived from grant
+      manage_grants  = true        # (Optional) Manage grants here. Default: true
+      import         = false       # (Optional) Import an existing user. Default: false
     }
     app_writer = {
       name      = "appwriter"      # (Required) MySQL user name
@@ -162,6 +176,14 @@ for use by the cloud wrapper module to store passwords in a secret manager:
 | `databases` | no | `map(db_ref → { name })` for all managed databases |
 | `users` | no | `map(user_ref → { name, grant })` for all managed users |
 
+**Incremental wrapper migration**
+
+Set `resource_group` explicitly when a wrapper must preserve whether a user lives at
+`mysql_user.owner[<key>]` or `mysql_user.user[<key>]`. Supply `password` to keep password
+generation and rotation in a cloud secret integration, and set `manage_grants = false` when
+grants remain at their existing wrapper addresses. These controls are intended for stable
+`moved`-block migrations and are optional for direct module consumers.
+
 **Grant privilege sets**
 
 | Grant type | MySQL privileges granted |
@@ -197,9 +219,9 @@ Available targets:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | ~> 3.0 |
-| <a name="provider_random"></a> [random](#provider\_random) | ~> 3.4 |
-| <a name="provider_time"></a> [time](#provider\_time) | ~> 0.13 |
+| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | 3.0.94 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.9.0 |
+| <a name="provider_time"></a> [time](#provider\_time) | 0.14.1 |
 
 ## Modules
 
