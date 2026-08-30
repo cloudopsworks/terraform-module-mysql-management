@@ -10,8 +10,8 @@ terraform {
   required_version = ">= 1.7"
   required_providers {
     mysql = {
-      source  = "winebarrel/mysql"
-      version = "~> 1.10"
+      source  = "petoju/mysql"
+      version = "~> 3.0"
     }
     random = {
       source  = "hashicorp/random"

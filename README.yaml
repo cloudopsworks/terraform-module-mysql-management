@@ -26,7 +26,7 @@ description: |-
 # Introduction to the project
 introduction: |-
   This module provides a cloud-agnostic way to manage MySQL databases and users using the
-  `winebarrel/mysql` Terraform provider. It does not include any cloud provider configuration —
+  `petoju/mysql` Terraform provider. It does not include any cloud provider configuration —
   the `mysql` provider must be passed in from the calling (cloud-specific) module.
 
   Resources managed:
@@ -34,6 +34,29 @@ introduction: |-
   - `mysql_user` + `random_password` — one per entry in `var.users`
   - `mysql_grant` — per (user, database) pair, with privilege sets matching the grant type
   - `time_rotating` — optional, triggers password rotation after `password_rotation_period` days
+
+  **Upgrading from v1.x**
+
+  Version 2.0 changes the MySQL provider source from `winebarrel/mysql` to `petoju/mysql`.
+  Before the first plan with v2.0, back up the state and replace the provider address reported
+  by `tofu providers` (or `terraform providers`):
+
+  ```shell
+  tofu state replace-provider \
+    registry.opentofu.org/winebarrel/mysql \
+    registry.opentofu.org/petoju/mysql
+  ```
+
+  Terraform users should use the addresses reported by `terraform providers`:
+
+  ```shell
+  terraform state replace-provider \
+    registry.terraform.io/winebarrel/mysql \
+    registry.terraform.io/petoju/mysql
+  ```
+
+  The command changes only the provider address stored in state; it does not recreate the
+  managed MySQL objects.
 
 # How to use this project
 usage: |-
@@ -43,7 +66,7 @@ usage: |-
   ```hcl
   # terragrunt.hcl (cloud module)
   terraform {
-    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v1.0.1"
+    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.0.0"
   }
 
   inputs = {
