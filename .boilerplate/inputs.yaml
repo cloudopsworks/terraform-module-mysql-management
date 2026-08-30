@@ -18,6 +18,7 @@ users: {}
 #     grant: "owner"         # (Required) Grant type: owner | readwrite | readonly
 #     databases: ["appdb"]   # (Required) List of database names to grant access on
 #     password: null          # (Optional, sensitive) Externally managed password. Default: generated
+#     generate_password: false # (Optional) Generate a password here. Default: true when password is omitted
 #     tls_option: "NONE"      # (Optional) MySQL TLS requirement. Default: provider default
 #     resource_group: "owner" # (Optional) Stable state group: owner | user. Default: derived from grant
 #     manage_grants: true     # (Optional) Manage grants in this module. Default: true
@@ -27,6 +28,7 @@ users: {}
 #     grant: "readonly"      # (Required) Grant type: owner | readwrite | readonly
 #     databases: ["appdb"]   # (Required) List of database names to grant access on
 #     password: null          # (Optional, sensitive) Externally managed password. Default: generated
+#     generate_password: false # (Optional) Generate a password here. Default: true when password is omitted
 #     tls_option: "NONE"      # (Optional) MySQL TLS requirement. Default: provider default
 #     resource_group: "user" # (Optional) Stable state group: owner | user. Default: derived from grant
 #     manage_grants: true     # (Optional) Manage grants in this module. Default: true
@@ -38,6 +40,7 @@ owner_users: {}
 #     name: "appowner"        # (Required) MySQL owner user name
 #     host: "%"               # (Optional) Host restriction. Default: "%"
 #     password: null          # (Optional, sensitive) Externally managed password. Default: generated
+#     generate_password: false # (Optional) Generate a password here. Default: true when password is omitted
 #     tls_option: "NONE"      # (Optional) MySQL TLS requirement. Default: provider default
 #     databases: ["appdb"]   # (Optional) Databases to grant. Default: []
 #     manage_grants: true     # (Optional) Manage grants in this module. Default: true

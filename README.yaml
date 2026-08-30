@@ -39,7 +39,8 @@ introduction: |-
 
   **Cloud-wrapper compatibility**
 
-  Wrapper modules can pass `password`, `resource_group`, and `manage_grants` per user. The
+  Wrapper modules can pass `password`, `generate_password`, `resource_group`, and
+  `manage_grants` per user. The
   separate `owner_users` map preserves an independent owner key space, including configurations
   where the same key also exists in `users`. This supports incremental adoption without rotating
   externally managed credentials or changing existing `for_each` keys. Because Terraform permits
@@ -77,7 +78,7 @@ usage: |-
   ```hcl
   # terragrunt.hcl (cloud module)
   terraform {
-    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.2.1"
+    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.3.0"
   }
 
   inputs = {
@@ -107,6 +108,7 @@ usage: |-
         #                            #   readonly  → SELECT only
         databases = ["appdb"]        # (Required) List of database names to grant access on
         # password       = "..."      # (Optional, sensitive) External password; generated when omitted
+        # generate_password = false    # (Optional) Set false for apply-time external password values
         resource_group = "owner"     # (Optional) Stable resource group. Default: derived from grant
         manage_grants  = true        # (Optional) Manage grants here. Default: true
       }
@@ -150,8 +152,9 @@ examples: |-
 
   Use `owner_users` when a wrapper has independent owner and regular-user key spaces; the same key
   can safely exist in both `owner_users` and `users`. Set `resource_group` explicitly for owner
-  entries retained in `users`. Supply `password` to keep password generation and rotation in a
-  cloud secret integration, and set `manage_grants = false` when grants remain at their existing
+  entries retained in `users`. Supply `password` and set `generate_password = false` to keep
+  password generation and rotation in a cloud secret integration, including when the password is
+  an apply-time resource result. Set `manage_grants = false` when grants remain at their existing
   wrapper addresses. These controls are intended for stable `moved`-block migrations and are
   optional for direct module consumers.
 

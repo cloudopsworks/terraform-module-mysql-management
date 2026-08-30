@@ -10,14 +10,14 @@
 resource "time_rotating" "user" {
   for_each = {
     for k, v in local.users : k => v
-    if try(v.password, null) == null && var.password_rotation_period > 0
+    if try(v.generate_password, try(v.password, null) == null) && var.password_rotation_period > 0
   }
   rotation_days = var.password_rotation_period
 }
 
 resource "random_password" "user" {
   for_each = {
-    for k, v in local.users : k => v if try(v.password, null) == null
+    for k, v in local.users : k => v if try(v.generate_password, try(v.password, null) == null)
   }
   length           = 25
   special          = true
@@ -38,7 +38,7 @@ resource "mysql_user" "user" {
   for_each           = local.users
   user               = try(each.value.name, each.key)
   host               = try(each.value.host, "%")
-  plaintext_password = try(each.value.password, null) != null ? each.value.password : random_password.user[each.key].result
+  plaintext_password = try(each.value.generate_password, try(each.value.password, null) == null) ? random_password.user[each.key].result : each.value.password
   tls_option         = try(each.value.tls_option, null)
 }
 
