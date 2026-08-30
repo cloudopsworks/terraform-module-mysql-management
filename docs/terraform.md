@@ -3,7 +3,7 @@
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.7 |
-| <a name="requirement_mysql"></a> [mysql](#requirement\_mysql) | ~> 1.10 |
+| <a name="requirement_mysql"></a> [mysql](#requirement\_mysql) | ~> 3.0 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | ~> 3.4 |
 | <a name="requirement_time"></a> [time](#requirement\_time) | ~> 0.13 |
 
@@ -11,7 +11,7 @@
 
 | Name | Version |
 |------|---------|
-| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | ~> 1.10 |
+| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | ~> 3.0 |
 | <a name="provider_random"></a> [random](#provider\_random) | ~> 3.4 |
 | <a name="provider_time"></a> [time](#provider\_time) | ~> 0.13 |
 
@@ -25,12 +25,12 @@
 
 | Name | Type |
 |------|------|
-| [mysql_database.this](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/database) | resource |
-| [mysql_grant.owner](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/grant) | resource |
-| [mysql_grant.readonly](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/grant) | resource |
-| [mysql_grant.readwrite](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/grant) | resource |
-| [mysql_user.owner](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/user) | resource |
-| [mysql_user.user](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/user) | resource |
+| [mysql_database.this](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/database) | resource |
+| [mysql_grant.owner](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/grant) | resource |
+| [mysql_grant.readonly](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/grant) | resource |
+| [mysql_grant.readwrite](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/grant) | resource |
+| [mysql_user.owner](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/user) | resource |
+| [mysql_user.user](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/user) | resource |
 | [random_password.owner](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 | [random_password.user](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 | [time_rotating.owner](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/rotating) | resource |

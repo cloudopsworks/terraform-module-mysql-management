@@ -47,7 +47,7 @@ We have [*lots of terraform modules*][terraform_modules] that are Open Source an
 ## Introduction
 
 This module provides a cloud-agnostic way to manage MySQL databases and users using the
-`winebarrel/mysql` Terraform provider. It does not include any cloud provider configuration —
+`petoju/mysql` Terraform provider. It does not include any cloud provider configuration —
 the `mysql` provider must be passed in from the calling (cloud-specific) module.
 
 Resources managed:
@@ -55,6 +55,29 @@ Resources managed:
 - `mysql_user` + `random_password` — one per entry in `var.users`
 - `mysql_grant` — per (user, database) pair, with privilege sets matching the grant type
 - `time_rotating` — optional, triggers password rotation after `password_rotation_period` days
+
+**Upgrading from v1.x**
+
+Version 2.0 changes the MySQL provider source from `winebarrel/mysql` to `petoju/mysql`.
+Before the first plan with v2.0, back up the state and replace the provider address reported
+by `tofu providers` (or `terraform providers`):
+
+```shell
+tofu state replace-provider \
+  registry.opentofu.org/winebarrel/mysql \
+  registry.opentofu.org/petoju/mysql
+```
+
+Terraform users should use the addresses reported by `terraform providers`:
+
+```shell
+terraform state replace-provider \
+  registry.terraform.io/winebarrel/mysql \
+  registry.terraform.io/petoju/mysql
+```
+
+The command changes only the provider address stored in state; it does not recreate the
+managed MySQL objects.
 
 ## Usage
 
@@ -69,7 +92,7 @@ provider alias:
 ```hcl
 # terragrunt.hcl (cloud module)
 terraform {
-  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v1.0.1"
+  source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.0.0"
 }
 
 inputs = {
@@ -166,7 +189,7 @@ Available targets:
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.7 |
-| <a name="requirement_mysql"></a> [mysql](#requirement\_mysql) | ~> 1.10 |
+| <a name="requirement_mysql"></a> [mysql](#requirement\_mysql) | ~> 3.0 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | ~> 3.4 |
 | <a name="requirement_time"></a> [time](#requirement\_time) | ~> 0.13 |
 
@@ -174,7 +197,7 @@ Available targets:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | ~> 1.10 |
+| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | ~> 3.0 |
 | <a name="provider_random"></a> [random](#provider\_random) | ~> 3.4 |
 | <a name="provider_time"></a> [time](#provider\_time) | ~> 0.13 |
 
@@ -188,12 +211,12 @@ Available targets:
 
 | Name | Type |
 |------|------|
-| [mysql_database.this](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/database) | resource |
-| [mysql_grant.owner](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/grant) | resource |
-| [mysql_grant.readonly](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/grant) | resource |
-| [mysql_grant.readwrite](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/grant) | resource |
-| [mysql_user.owner](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/user) | resource |
-| [mysql_user.user](https://registry.terraform.io/providers/winebarrel/mysql/latest/docs/resources/user) | resource |
+| [mysql_database.this](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/database) | resource |
+| [mysql_grant.owner](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/grant) | resource |
+| [mysql_grant.readonly](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/grant) | resource |
+| [mysql_grant.readwrite](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/grant) | resource |
+| [mysql_user.owner](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/user) | resource |
+| [mysql_user.user](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/user) | resource |
 | [random_password.owner](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 | [random_password.user](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 | [time_rotating.owner](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/rotating) | resource |
