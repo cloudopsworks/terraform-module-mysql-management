@@ -12,7 +12,7 @@ output "owner_passwords" {
   sensitive   = true
   value = {
     for k, v in local.owner_users : k => (
-      try(v.password, null) != null ? v.password : random_password.owner[k].result
+      try(v.generate_password, try(v.password, null) == null) ? random_password.owner[k].result : v.password
     )
   }
 }
@@ -27,7 +27,7 @@ output "user_passwords" {
   sensitive   = true
   value = {
     for k, v in local.users : k => (
-      try(v.password, null) != null ? v.password : random_password.user[k].result
+      try(v.generate_password, try(v.password, null) == null) ? random_password.user[k].result : v.password
     )
   }
 }

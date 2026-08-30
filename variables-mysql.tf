@@ -28,6 +28,7 @@ variable "databases" {
 #     grant: "owner"            # (Required) Grant type: owner | readwrite | readonly.
 #     databases: ["mydb"]       # (Required) List of database names to grant access on.
 #     password: "external"       # (Optional, sensitive) Externally managed password. Default: generated.
+#     generate_password: false    # (Optional) Generate a password here. Default: true when password is omitted.
 #     tls_option: "NONE"         # (Optional) MySQL TLS requirement. Default: provider default.
 #     resource_group: "owner"    # (Optional) Stable resource group: owner | user. Default: derived from grant.
 #     manage_grants: true         # (Optional) Whether this module manages grants. Default: true.
@@ -42,6 +43,7 @@ variable "users" {
 #   <owner_ref>:
 #     name: "database_owner"    # (Required) MySQL owner user name.
 #     password: "external"      # (Optional, sensitive) Externally managed password. Default: generated.
+#     generate_password: false   # (Optional) Generate a password here. Default: true when password is omitted.
 #     host: "%"                 # (Optional) Host restriction. Default: "%".
 #     tls_option: "NONE"        # (Optional) MySQL TLS requirement. Default: provider default.
 #     databases: ["mydb"]       # (Optional) Databases to grant when manage_grants is true. Default: [].

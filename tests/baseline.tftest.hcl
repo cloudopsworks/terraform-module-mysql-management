@@ -91,6 +91,7 @@ run "wrapper_compatibility_contract" {
       shared = {
         name          = "managed_owner"
         password      = "externally-managed-owner-password"
+        generate_password = false
         manage_grants = false
         tls_option    = "NONE"
       }
@@ -102,6 +103,7 @@ run "wrapper_compatibility_contract" {
         grant          = "owner"
         resource_group = "user"
         password       = "externally-managed-user-password"
+        generate_password = false
         manage_grants  = false
       }
     }
