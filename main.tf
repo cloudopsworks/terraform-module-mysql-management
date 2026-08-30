@@ -7,6 +7,20 @@
 #     Distributed Under Apache v2.0 License
 #
 
+locals {
+  owner_users = merge(
+    {
+      for k, v in var.users : k => v
+      if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "owner"
+    },
+    var.owner_users,
+  )
+  users = {
+    for k, v in var.users : k => v
+    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user"
+  }
+}
+
 resource "mysql_database" "this" {
   for_each = {
     for k, v in var.databases : k => v if try(v.create, true)
@@ -26,18 +40,15 @@ import {
 
 resource "time_rotating" "owner" {
   for_each = {
-    for k, v in var.users : k => v
-    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "owner" &&
-    try(v.password, null) == null && var.password_rotation_period > 0
+    for k, v in local.owner_users : k => v
+    if try(v.password, null) == null && var.password_rotation_period > 0
   }
   rotation_days = var.password_rotation_period
 }
 
 resource "random_password" "owner" {
   for_each = {
-    for k, v in var.users : k => v
-    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "owner" &&
-    try(v.password, null) == null
+    for k, v in local.owner_users : k => v if try(v.password, null) == null
   }
   length           = 25
   special          = true
@@ -55,10 +66,7 @@ resource "random_password" "owner" {
 }
 
 resource "mysql_user" "owner" {
-  for_each = {
-    for k, v in var.users : k => v
-    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "owner"
-  }
+  for_each           = local.owner_users
   user               = try(each.value.name, each.key)
   host               = try(each.value.host, "%")
   plaintext_password = try(each.value.password, null) != null ? each.value.password : random_password.owner[each.key].result
@@ -67,9 +75,7 @@ resource "mysql_user" "owner" {
 
 import {
   for_each = {
-    for k, v in var.users : k => v
-    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "owner" &&
-    try(v.import, false)
+    for k, v in local.owner_users : k => v if try(v.import, false)
   }
   to = mysql_user.owner[each.key]
   id = try(each.value.name, each.key)
@@ -78,7 +84,7 @@ import {
 resource "mysql_grant" "owner" {
   for_each = {
     for item in flatten([
-      for k, v in var.users : [
+      for k, v in local.owner_users : [
         for db in try(v.databases, []) : {
           key      = "${k}-${db}"
           user_key = k
@@ -86,7 +92,7 @@ resource "mysql_grant" "owner" {
           host     = try(v.host, "%")
           database = db
         }
-      ] if try(v.grant, "owner") == "owner" && try(v.manage_grants, true)
+      ] if try(v.manage_grants, true)
     ]) : item.key => item
   }
   user       = each.value.username

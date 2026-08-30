@@ -39,6 +39,22 @@ variable "users" {
   default     = {}
 }
 
+## owner_users: optional map for wrappers that preserve owner and regular-user key spaces
+# owner_users:
+#   <owner_ref>:
+#     name: "database_owner"    # (Required) MySQL owner user name.
+#     password: "external"      # (Optional, sensitive) Externally managed password. Default: generated.
+#     host: "%"                 # (Optional) Host restriction. Default: "%".
+#     tls_option: "NONE"        # (Optional) MySQL TLS requirement. Default: provider default.
+#     databases: ["mydb"]       # (Optional) Databases to grant when manage_grants is true. Default: [].
+#     manage_grants: true        # (Optional) Whether this module manages grants. Default: true.
+#     import: false              # (Optional) Import the user when it already exists. Default: false.
+variable "owner_users" {
+  description = "Optional owner-user map with an independent key space for state-compatible wrapper migrations."
+  type        = any
+  default     = {}
+}
+
 ## password_rotation_period: days between rotations (0 = no time-based rotation)
 variable "password_rotation_period" {
   description = "(Optional) Password rotation period in days. Default: 0."

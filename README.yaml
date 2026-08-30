@@ -39,9 +39,11 @@ introduction: |-
 
   **Cloud-wrapper compatibility**
 
-  Wrapper modules can pass `password`, `resource_group`, and `manage_grants` per user. This
-  supports incremental adoption without rotating externally managed credentials or changing
-  existing `for_each` keys. Databases and users also support declarative `import` settings.
+  Wrapper modules can pass `password`, `resource_group`, and `manage_grants` per user. The
+  separate `owner_users` map preserves an independent owner key space, including configurations
+  where the same key also exists in `users`. This supports incremental adoption without rotating
+  externally managed credentials or changing existing `for_each` keys. Databases and users also
+  support declarative `import` settings.
 
   **Upgrading from v1.x**
 
@@ -74,7 +76,7 @@ usage: |-
   ```hcl
   # terragrunt.hcl (cloud module)
   terraform {
-    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.1.0"
+    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.2.0"
   }
 
   inputs = {
@@ -123,6 +125,9 @@ usage: |-
       }
     }
 
+    # Cloud wrappers can use a separate owner map when owner and regular-user keys overlap.
+    owner_users = {}
+
     password_rotation_period = 90    # (Optional) Days between password rotations. Default: 0 (disabled)
     force_reset              = false # (Optional) Force password reset on next apply. Default: false
   }
@@ -144,11 +149,12 @@ examples: |-
 
   **Incremental wrapper migration**
 
-  Set `resource_group` explicitly when a wrapper must preserve whether a user lives at
-  `mysql_user.owner[<key>]` or `mysql_user.user[<key>]`. Supply `password` to keep password
-  generation and rotation in a cloud secret integration, and set `manage_grants = false` when
-  grants remain at their existing wrapper addresses. These controls are intended for stable
-  `moved`-block migrations and are optional for direct module consumers.
+  Use `owner_users` when a wrapper has independent owner and regular-user key spaces; the same key
+  can safely exist in both `owner_users` and `users`. Set `resource_group` explicitly for owner
+  entries retained in `users`. Supply `password` to keep password generation and rotation in a
+  cloud secret integration, and set `manage_grants = false` when grants remain at their existing
+  wrapper addresses. These controls are intended for stable `moved`-block migrations and are
+  optional for direct module consumers.
 
   **Grant privilege sets**
 

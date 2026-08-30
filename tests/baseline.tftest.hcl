@@ -87,16 +87,17 @@ run "wrapper_compatibility_contract" {
       }
     }
 
-    users = {
-      database_owner = {
-        name           = "managed_owner"
-        grant          = "owner"
-        resource_group = "owner"
-        password       = "externally-managed-owner-password"
-        manage_grants  = false
-        tls_option     = "NONE"
+    owner_users = {
+      shared = {
+        name          = "managed_owner"
+        password      = "externally-managed-owner-password"
+        manage_grants = false
+        tls_option    = "NONE"
       }
-      owner_grant_user = {
+    }
+
+    users = {
+      shared = {
         name           = "application_owner"
         grant          = "owner"
         resource_group = "user"
@@ -113,7 +114,7 @@ run "wrapper_compatibility_contract" {
 
   assert {
     condition     = length(mysql_user.owner) == 1 && length(mysql_user.user) == 1
-    error_message = "Explicit resource groups must preserve wrapper state addresses independently of grants."
+    error_message = "Independent owner and regular-user maps must preserve wrapper state addresses."
   }
 
   assert {

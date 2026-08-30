@@ -45,6 +45,7 @@
 | <a name="input_force_reset"></a> [force\_reset](#input\_force\_reset) | (Optional) Force password reset on next apply. Default: false. | `bool` | `false` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
+| <a name="input_owner_users"></a> [owner\_users](#input\_owner\_users) | Optional owner-user map with an independent key space for state-compatible wrapper migrations. | `any` | `{}` | no |
 | <a name="input_password_rotation_period"></a> [password\_rotation\_period](#input\_password\_rotation\_period) | (Optional) Password rotation period in days. Default: 0. | `number` | `0` | no |
 | <a name="input_spoke_def"></a> [spoke\_def](#input\_spoke\_def) | Spoke ID Number, must be a 3 digit number | `string` | `"001"` | no |
 | <a name="input_users"></a> [users](#input\_users) | Map of MySQL users. See inline docs for full schema. | `any` | `{}` | no |
