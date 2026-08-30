@@ -9,14 +9,18 @@
 
 resource "time_rotating" "user" {
   for_each = {
-    for k, v in var.users : k => v if try(v.grant, "owner") != "owner" && var.password_rotation_period > 0
+    for k, v in var.users : k => v
+    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user" &&
+    try(v.password, null) == null && var.password_rotation_period > 0
   }
   rotation_days = var.password_rotation_period
 }
 
 resource "random_password" "user" {
   for_each = {
-    for k, v in var.users : k => v if try(v.grant, "owner") != "owner"
+    for k, v in var.users : k => v
+    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user" &&
+    try(v.password, null) == null
   }
   length           = 25
   special          = true
@@ -34,10 +38,24 @@ resource "random_password" "user" {
 }
 
 resource "mysql_user" "user" {
-  for_each           = { for k, v in var.users : k => v if try(v.grant, "owner") != "owner" }
+  for_each = {
+    for k, v in var.users : k => v
+    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user"
+  }
   user               = try(each.value.name, each.key)
   host               = try(each.value.host, "%")
-  plaintext_password = random_password.user[each.key].result
+  plaintext_password = try(each.value.password, null) != null ? each.value.password : random_password.user[each.key].result
+  tls_option         = try(each.value.tls_option, null)
+}
+
+import {
+  for_each = {
+    for k, v in var.users : k => v
+    if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user" &&
+    try(v.import, false)
+  }
+  to = mysql_user.user[each.key]
+  id = try(each.value.name, each.key)
 }
 
 resource "mysql_grant" "readwrite" {
@@ -51,7 +69,7 @@ resource "mysql_grant" "readwrite" {
           host     = try(v.host, "%")
           database = db
         }
-      ] if try(v.grant, "owner") == "readwrite"
+      ] if try(v.grant, "owner") == "readwrite" && try(v.manage_grants, true)
     ]) : item.key => item
   }
   user       = each.value.username
@@ -72,7 +90,7 @@ resource "mysql_grant" "readonly" {
           host     = try(v.host, "%")
           database = db
         }
-      ] if try(v.grant, "owner") == "readonly"
+      ] if try(v.grant, "owner") == "readonly" && try(v.manage_grants, true)
     ]) : item.key => item
   }
   user       = each.value.username
