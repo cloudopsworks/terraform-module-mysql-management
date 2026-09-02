@@ -49,20 +49,22 @@ locals {
   ]
 
   # Plugin names are compared case-insensitively so mixed-case spellings such as
-  # AWSAuthenticationPlugin match however the operator writes them.
+  # AWSAuthenticationPlugin match however the operator writes them. `try(lower(...), "")`
+  # absorbs both an absent attribute and an explicit null, which is what a wrapper emits
+  # when it maps the attribute through unconditionally.
   passwordless_auth_plugins_lower = [for p in local.passwordless_auth_plugins : lower(p)]
 
   # user_ref => true when this module must not hold a password for the account, either
   # because the plugin authenticates without one or because the operator supplied the hash.
   owner_password_suppressed = {
     for k, v in local.owner_users : k => (
-      contains(local.passwordless_auth_plugins_lower, lower(try(v.auth_plugin, "")))
+      contains(local.passwordless_auth_plugins_lower, try(lower(v.auth_plugin), ""))
       || try(v.auth_string, v.auth_string_hashed, null) != null
     )
   }
   user_password_suppressed = {
     for k, v in local.users : k => (
-      contains(local.passwordless_auth_plugins_lower, lower(try(v.auth_plugin, "")))
+      contains(local.passwordless_auth_plugins_lower, try(lower(v.auth_plugin), ""))
       || try(v.auth_string, v.auth_string_hashed, null) != null
     )
   }
