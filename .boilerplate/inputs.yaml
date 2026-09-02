@@ -76,3 +76,8 @@ password_rotation_period: 0
 # force_reset: (Optional) Set to true to force password replacement on the next apply.
 # Resets to false after the passwords have been rotated. Default: false
 force_reset: false
+
+# specials_in_password: (Optional) Use special characters (=_-+@~#) in generated owner/user
+# passwords. Set to false for alphanumeric-only passwords when a client or connection string
+# cannot carry specials. Default: true
+specials_in_password: true

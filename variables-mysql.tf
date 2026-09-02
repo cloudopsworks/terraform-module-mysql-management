@@ -83,3 +83,11 @@ variable "force_reset" {
   type        = bool
   default     = false
 }
+
+## specials_in_password: use special characters in generated passwords
+variable "specials_in_password" {
+  description = "(Optional) Use special characters (=_-+@~#) in generated owner/user passwords. When false, generated passwords are alphanumeric only. Default: true."
+  type        = bool
+  default     = true
+  nullable    = false
+}

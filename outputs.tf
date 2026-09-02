@@ -51,3 +51,13 @@ output "users" {
     }
   }
 }
+
+output "owner_password_managed" {
+  description = "Map of user_ref → whether this module holds a password for the owner account. False when auth_plugin authenticates without a password or auth_string is supplied, in which case the user_ref is absent from owner_passwords. Plan-time known, so consumers may use it in for_each."
+  value       = { for k, v in local.owner_users : k => !local.owner_password_suppressed[k] }
+}
+
+output "user_password_managed" {
+  description = "Map of user_ref → whether this module holds a password for the user account. False when auth_plugin authenticates without a password or auth_string is supplied, in which case the user_ref is absent from user_passwords. Plan-time known, so consumers may use it in for_each."
+  value       = { for k, v in local.users : k => !local.user_password_suppressed[k] }
+}

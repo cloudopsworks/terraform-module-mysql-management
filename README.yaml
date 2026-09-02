@@ -35,7 +35,8 @@ introduction: |-
   - `mysql_database` — one per entry in `var.databases`
   - `mysql_user` + `random_password` — one per entry in `var.users`, with optional
     authentication (`auth_plugin`, `auth_string`, `aad_identity`) and resource-limit
-    (`max_user_connections`, `max_statement_time`) account settings
+    (`max_user_connections`, `max_statement_time`) account settings; the generated password
+    alphabet is controlled by `specials_in_password`
   - `mysql_grant` — per (user, database) pair, with privilege sets matching the grant type
   - `time_rotating` — optional, triggers password rotation after `password_rotation_period` days
 
@@ -105,8 +106,42 @@ introduction: |-
   account produced a stored secret that could never authenticate it. Wrappers that iterate
   those maps must tolerate a user_ref being absent.
 
+  Because the password maps are sensitive, their keys cannot drive a `for_each`. The
+  `owner_password_managed` / `user_password_managed` outputs carry the same information as
+  plain booleans derived from configuration only, so a wrapper can branch on them at plan
+  time to decide whether to write a credential at all:
+
+  ```hcl
+  resource "aws_secretsmanager_secret_version" "user" {
+    for_each = {
+      for k, v in var.users : k => v if module.db.user_password_managed[k]
+    }
+    ...
+  }
+  ```
+
   `generate_password` is not needed to opt out for these accounts; the gate applies on its own.
   It still works as before for every other account.
+
+  **Generated password shape**
+
+  Generated passwords are 25 characters with at least two upper-case, two lower-case and two
+  numeric characters. `specials_in_password` (default `true`) adds at least two characters from
+  `=_-+@~#`; set it to `false` when a client, driver or connection string in the consuming stack
+  cannot carry special characters, and generated passwords become alphanumeric only.
+
+  `force_reset = true` replaces every generated password on the next apply. The flag is written
+  to the `keepers` of `random_password` **only while it is true** — with `force_reset = false`
+  the attribute is absent from the resource entirely. That is what makes a wrapper migration
+  clean: a cloud module that generated passwords itself can hand them to this module with a
+  `moved` block and Terraform adopts them in place, because there is no keepers change to
+  force a replacement.
+
+  > **Upgrading a consumer that already generates passwords here.** Releases up to and
+  > including `v2.3.1-alpha.2` always wrote `keepers = { force_reset = "false" }`. Adopting a
+  > release with the conditional shape drops that attribute, which Terraform plans as a
+  > replacement of every generated password. Check `terraform plan` before applying the bump on
+  > a stack where this module — rather than the wrapper — owns password generation.
 
   **Azure AD authentication**
 
@@ -231,6 +266,7 @@ usage: |-
 
     password_rotation_period = 90    # (Optional) Days between password rotations. Default: 0 (disabled)
     force_reset              = false # (Optional) Force password reset on next apply. Default: false
+    specials_in_password     = true  # (Optional) Use =_-+@~# in generated passwords. Default: true
   }
   ```
 
@@ -242,8 +278,10 @@ examples: |-
   | Output | Sensitive | Description |
   |---|---|---|
   | `owner_passwords` | yes | `map(user_ref → password)` for `owner`-grant users; omits accounts covered by the password generation gate |
+  | `owner_password_managed` | no | `map(user_ref → bool)` — `false` where the gate withheld the owner password, so the ref is absent from `owner_passwords` |
   | `owner_usernames` | no | `map(user_ref → MySQL username)` for `owner`-grant users |
   | `user_passwords` | yes | `map(user_ref → password)` for `readwrite`/`readonly` users; omits accounts covered by the password generation gate |
+  | `user_password_managed` | no | `map(user_ref → bool)` — `false` where the gate withheld the user password, so the ref is absent from `user_passwords` |
   | `user_usernames` | no | `map(user_ref → MySQL username)` for `readwrite`/`readonly` users |
   | `databases` | no | `map(db_ref → { name })` for all managed databases |
   | `users` | no | `map(user_ref → { name, grant })` for all managed users |

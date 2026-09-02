@@ -105,15 +105,17 @@ resource "random_password" "owner" {
     for k, v in local.owner_users : k => v if local.owner_generate_password[k]
   }
   length           = 25
-  special          = true
+  special          = var.specials_in_password
   override_special = "=_-+@~#"
   min_upper        = 2
-  min_special      = 2
+  min_special      = var.specials_in_password ? 2 : 0
   min_numeric      = 2
   min_lower        = 2
-  keepers = {
-    force_reset = var.force_reset
-  }
+  # `keepers` is written only when a reset is actually requested. Leaving the attribute
+  # absent by default lets a wrapper hand its own keepers-less `random_password` over with
+  # a `moved` block: Terraform sees no keepers change, so the password is adopted in place
+  # instead of being replaced.
+  keepers = var.force_reset ? { force_reset = "true" } : null
   lifecycle {
     replace_triggered_by = [time_rotating.owner]
   }
