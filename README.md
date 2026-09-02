@@ -80,18 +80,45 @@ defaults and produce no plan diff.
 
 **Password generation gate**
 
-A generated password is only useful when the account actually authenticates with one.
-Three `auth_plugin` values make the provider build the credential itself — it emits
-`CREATE AADUSER` or `IDENTIFIED WITH <plugin>` with no `BY '<password>'` clause — and a
-supplied `auth_string` *is* the credential. In those cases the module suppresses password
-generation entirely:
+A generated password is only useful when the account actually authenticates with one. Many
+authentication plugins delegate the credential to the OS, Kerberos/AD, LDAP, PAM, a hardware
+authenticator or a cloud IAM service, and a supplied `auth_string` *is* the credential. In
+those cases the module suppresses password generation entirely:
 
 | Condition | Password generated? | Present in `*_passwords` output? |
 |---|---|---|
-| `auth_plugin` = `aad_auth`, `AWSAuthenticationPlugin`, or `mysql_no_login` | no | no |
+| `auth_plugin` is one of the delegating plugins below | no | no |
 | `auth_string` / `auth_string_hashed` supplied | no | no |
 | `auth_plugin` set to any other plugin (e.g. `caching_sha2_password`) | yes | yes |
 | no `auth_plugin` (default) | yes | yes |
+
+The delegating set is taken from the upstream plugin references —
+[MySQL 8.4](https://dev.mysql.com/doc/refman/8.4/en/authentication-plugins.html) and
+[MariaDB](https://mariadb.com/docs/server/reference/plugins/authentication-plugins) — plus the
+two cloud IAM plugins:
+
+| Server | `auth_plugin` | Credential source |
+|---|---|---|
+| MySQL | `auth_socket` | OS socket peer credentials |
+| MySQL | `authentication_kerberos` | Kerberos; takes `BY '<realm_name>'`, **not** a password |
+| MySQL | `authentication_ldap_sasl` | LDAP directory; takes `AS '<ldap_dn>'` |
+| MySQL | `authentication_ldap_simple` | LDAP directory; takes `AS '<ldap_dn>'` |
+| MySQL | `authentication_pam` | PAM; takes `AS '<pam_service_name>'` |
+| MySQL | `authentication_webauthn` | Hardware authenticator |
+| MySQL | `authentication_windows` | Windows SSPI |
+| MySQL | `mysql_no_login` | Login disabled outright |
+| MariaDB | `gssapi` | Kerberos / SSPI single sign-on |
+| MariaDB | `named_pipe` | Windows named-pipe peer credentials |
+| MariaDB | `pam` | PAM |
+| MariaDB | `unix_socket` | OS socket peer credentials |
+| Azure | `aad_auth` | Microsoft Entra ID, via `aad_identity` |
+| AWS | `AWSAuthenticationPlugin` | RDS / Aurora IAM authentication |
+
+Plugin names are matched case-insensitively. `authentication_kerberos` is the sharpest case:
+the provider appends `BY '<password>'`, which that plugin reads as its **realm name** — so a
+generated password would have been written into the account's Kerberos realm.
+
+For any plugin not listed here, set `generate_password = false` to opt out manually.
 
 Suppressed accounts are created normally and still appear in `owner_usernames` /
 `user_usernames`; only the password is withheld. This matters because cloud wrappers write

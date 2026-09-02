@@ -28,7 +28,7 @@ variable "databases" {
 #     grant: "owner"            # (Required) Grant type: owner | readwrite | readonly.
 #     databases: ["mydb"]       # (Required) List of database names to grant access on.
 #     password: "external"       # (Optional, sensitive) Externally managed password. Default: generated.
-#     generate_password: false    # (Optional) Generate a password here. Default: true when password is omitted. Forced off when auth_plugin is aad_auth/AWSAuthenticationPlugin/mysql_no_login, or when auth_string is set.
+#     generate_password: false    # (Optional) Generate a password here. Default: true when password is omitted. Forced off when auth_plugin delegates authentication (auth_socket, authentication_kerberos/ldap_*/pam/webauthn/windows, mysql_no_login, gssapi, named_pipe, pam, unix_socket, aad_auth, AWSAuthenticationPlugin) or when auth_string is set.
 #     tls_option: "NONE"         # (Optional) MySQL TLS requirement. Default: provider default.
 #     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin. One of: mysql_native_password | caching_sha2_password | sha256_password | aad_auth. Default: server default.
 #     auth_string: "*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19" # (Optional, sensitive) Already-hashed authentication string for auth_plugin. Alias of auth_string_hashed. Default: null.
@@ -51,7 +51,7 @@ variable "users" {
 #   <owner_ref>:
 #     name: "database_owner"    # (Required) MySQL owner user name.
 #     password: "external"      # (Optional, sensitive) Externally managed password. Default: generated.
-#     generate_password: false   # (Optional) Generate a password here. Default: true when password is omitted. Forced off when auth_plugin is aad_auth/AWSAuthenticationPlugin/mysql_no_login, or when auth_string is set.
+#     generate_password: false   # (Optional) Generate a password here. Default: true when password is omitted. Forced off when auth_plugin delegates authentication (auth_socket, authentication_kerberos/ldap_*/pam/webauthn/windows, mysql_no_login, gssapi, named_pipe, pam, unix_socket, aad_auth, AWSAuthenticationPlugin) or when auth_string is set.
 #     host: "%"                 # (Optional) Host restriction. Default: "%".
 #     tls_option: "NONE"        # (Optional) MySQL TLS requirement. Default: provider default.
 #     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin. One of: mysql_native_password | caching_sha2_password | sha256_password | aad_auth. Default: server default.

@@ -81,6 +81,68 @@ run "passwordless_plugins_suppress_generation" {
   }
 }
 
+run "all_documented_passwordless_plugins_suppress_generation" {
+  command = plan
+
+  variables {
+    users = {
+      # MySQL 8.4 — dev.mysql.com/doc/refman/8.4/en/authentication-plugins.html
+      socket   = { name = "u01", grant = "readonly", databases = ["appdb"], auth_plugin = "auth_socket" }
+      kerberos = { name = "u02", grant = "readonly", databases = ["appdb"], auth_plugin = "authentication_kerberos" }
+      ldapsasl = { name = "u03", grant = "readonly", databases = ["appdb"], auth_plugin = "authentication_ldap_sasl" }
+      ldapsimp = { name = "u04", grant = "readonly", databases = ["appdb"], auth_plugin = "authentication_ldap_simple" }
+      pament   = { name = "u05", grant = "readonly", databases = ["appdb"], auth_plugin = "authentication_pam" }
+      webauthn = { name = "u06", grant = "readonly", databases = ["appdb"], auth_plugin = "authentication_webauthn" }
+      windows  = { name = "u07", grant = "readonly", databases = ["appdb"], auth_plugin = "authentication_windows" }
+      nologin  = { name = "u08", grant = "readonly", databases = ["appdb"], auth_plugin = "mysql_no_login" }
+      # MariaDB — mariadb.com/docs/server/reference/plugins/authentication-plugins
+      gssapi     = { name = "u09", grant = "readonly", databases = ["appdb"], auth_plugin = "gssapi" }
+      namedpipe  = { name = "u10", grant = "readonly", databases = ["appdb"], auth_plugin = "named_pipe" }
+      pam        = { name = "u11", grant = "readonly", databases = ["appdb"], auth_plugin = "pam" }
+      unixsocket = { name = "u12", grant = "readonly", databases = ["appdb"], auth_plugin = "unix_socket" }
+      # Cloud-managed IAM
+      aws = { name = "u13", grant = "readonly", databases = ["appdb"], auth_plugin = "AWSAuthenticationPlugin" }
+      aad = {
+        name = "u14", grant = "readonly", databases = ["appdb"], auth_plugin = "aad_auth"
+        aad_identity = { identity = "u14@contoso.com" }
+      }
+    }
+    password_rotation_period = 90
+  }
+
+  assert {
+    condition     = length(mysql_user.user) == 14
+    error_message = "Every documented passwordless account must still be created."
+  }
+
+  assert {
+    condition     = length(random_password.user) == 0
+    error_message = "No plugin documented as delegating authentication may generate a password."
+  }
+
+  assert {
+    condition     = length(output.user_passwords) == 0
+    error_message = "No documented passwordless plugin may reach the password outputs."
+  }
+}
+
+run "plugin_match_is_case_insensitive" {
+  command = plan
+
+  variables {
+    users = {
+      lower = { name = "lower_user", grant = "readonly", databases = ["appdb"], auth_plugin = "awsauthenticationplugin" }
+      upper = { name = "upper_user", grant = "readonly", databases = ["appdb"], auth_plugin = "UNIX_SOCKET" }
+    }
+    password_rotation_period = 90
+  }
+
+  assert {
+    condition     = length(random_password.user) == 0
+    error_message = "Plugin names must match regardless of case."
+  }
+}
+
 run "auth_string_suppresses_generation" {
   command = plan
 

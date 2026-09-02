@@ -20,22 +20,49 @@ locals {
     if try(v.resource_group, try(v.grant, "owner") == "owner" ? "owner" : "user") == "user"
   }
 
-  # Authentication plugins that build the credential themselves. For these the provider
-  # emits CREATE AADUSER or IDENTIFIED WITH <plugin> with no "BY '<password>'" clause, so a
-  # password held by this module would never authenticate the account.
-  passwordless_auth_plugins = ["aad_auth", "AWSAuthenticationPlugin", "mysql_no_login"]
+  # Authentication plugins that do not authenticate against a password the server stores.
+  # They delegate the credential to the OS, Kerberos/AD, LDAP, PAM, a hardware token or a
+  # cloud IAM service, or they disable login outright. A password held by this module would
+  # never authenticate these accounts, and for some it is actively harmful: the provider
+  # appends "BY '<password>'", which authentication_kerberos reads as its realm name.
+  #
+  # MySQL 8.4: https://dev.mysql.com/doc/refman/8.4/en/authentication-plugins.html
+  # MariaDB:   https://mariadb.com/docs/server/reference/plugins/authentication-plugins
+  passwordless_auth_plugins = [
+    # MySQL 8.4
+    "auth_socket",                # OS socket peer credentials
+    "authentication_kerberos",    # takes BY '<realm_name>', not a password
+    "authentication_ldap_sasl",   # takes AS '<ldap_dn>'
+    "authentication_ldap_simple", # takes AS '<ldap_dn>'
+    "authentication_pam",         # takes AS '<pam_service_name>'
+    "authentication_webauthn",    # hardware authenticator
+    "authentication_windows",     # Windows SSPI
+    "mysql_no_login",             # login disabled outright
+    # MariaDB
+    "gssapi",      # Kerberos / SSPI single sign-on
+    "named_pipe",  # Windows named-pipe peer credentials
+    "pam",         # PAM
+    "unix_socket", # OS socket peer credentials
+    # Cloud-managed IAM
+    "aad_auth",                # Azure Database for MySQL, Microsoft Entra ID
+    "AWSAuthenticationPlugin", # Amazon RDS / Aurora IAM authentication
+  ]
+
+  # Plugin names are compared case-insensitively so mixed-case spellings such as
+  # AWSAuthenticationPlugin match however the operator writes them.
+  passwordless_auth_plugins_lower = [for p in local.passwordless_auth_plugins : lower(p)]
 
   # user_ref => true when this module must not hold a password for the account, either
   # because the plugin authenticates without one or because the operator supplied the hash.
   owner_password_suppressed = {
     for k, v in local.owner_users : k => (
-      contains(local.passwordless_auth_plugins, try(v.auth_plugin, ""))
+      contains(local.passwordless_auth_plugins_lower, lower(try(v.auth_plugin, "")))
       || try(v.auth_string, v.auth_string_hashed, null) != null
     )
   }
   user_password_suppressed = {
     for k, v in local.users : k => (
-      contains(local.passwordless_auth_plugins, try(v.auth_plugin, ""))
+      contains(local.passwordless_auth_plugins_lower, lower(try(v.auth_plugin, "")))
       || try(v.auth_string, v.auth_string_hashed, null) != null
     )
   }
