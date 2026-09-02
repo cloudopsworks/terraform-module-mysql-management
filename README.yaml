@@ -33,9 +33,25 @@ introduction: |-
 
   Resources managed:
   - `mysql_database` — one per entry in `var.databases`
-  - `mysql_user` + `random_password` — one per entry in `var.users`
+  - `mysql_user` + `random_password` — one per entry in `var.users`, with optional
+    `auth_plugin`, `max_user_connections`, and `max_statement_time` account settings
   - `mysql_grant` — per (user, database) pair, with privilege sets matching the grant type
   - `time_rotating` — optional, triggers password rotation after `password_rotation_period` days
+
+  **User account settings**
+
+  Each entry in `users` and `owner_users` accepts optional account attributes that are passed
+  straight through to `mysql_user`:
+
+  | Attribute | Type | Description |
+  |---|---|---|
+  | `tls_option` | string | Connection TLS requirement (e.g. `NONE`, `SSL`, `X509`). Server default when omitted. |
+  | `auth_plugin` | string | Authentication plugin for the account (e.g. `caching_sha2_password`, `mysql_native_password`). Server default when omitted. |
+  | `max_user_connections` | number | Maximum simultaneous connections for the account. `0` means unlimited. Server default when omitted. |
+  | `max_statement_time` | number | Maximum statement execution time in seconds; fractional values are allowed. `0` means unlimited. Supported on **MariaDB 10.1.1+ only**, not MySQL. Server default when omitted. |
+
+  All four are omitted from the resource when unset, so existing deployments keep the server
+  defaults and produce no plan diff.
 
   **Cloud-wrapper compatibility**
 
@@ -78,7 +94,7 @@ usage: |-
   ```hcl
   # terragrunt.hcl (cloud module)
   terraform {
-    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.3.0"
+    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.3.1"
   }
 
   inputs = {
@@ -117,6 +133,12 @@ usage: |-
         host      = "%"              # (Optional) Host restriction. Default: "%"
         grant     = "readwrite"      # (Required) Grant type
         databases = ["appdb"]        # (Required) List of database names to grant access on
+        # tls_option           = "NONE"  # (Optional) TLS requirement. Default: server default
+        # auth_plugin          = "caching_sha2_password"
+        #                              # (Optional) Authentication plugin. Default: server default
+        max_user_connections = 50    # (Optional) Connection limit, 0 = unlimited. Default: server default
+        # max_statement_time = 30      # (Optional) Statement limit in seconds, 0 = unlimited.
+        #                              #   MariaDB 10.1.1+ only, not MySQL. Default: server default
       }
       app_reader = {
         name      = "appreader"      # (Required) MySQL user name

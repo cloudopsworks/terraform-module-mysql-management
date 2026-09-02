@@ -58,11 +58,14 @@ resource "random_password" "owner" {
 }
 
 resource "mysql_user" "owner" {
-  for_each           = local.owner_users
-  user               = try(each.value.name, each.key)
-  host               = try(each.value.host, "%")
-  plaintext_password = try(each.value.generate_password, try(each.value.password, null) == null) ? random_password.owner[each.key].result : each.value.password
-  tls_option         = try(each.value.tls_option, null)
+  for_each             = local.owner_users
+  user                 = try(each.value.name, each.key)
+  host                 = try(each.value.host, "%")
+  plaintext_password   = try(each.value.generate_password, try(each.value.password, null) == null) ? random_password.owner[each.key].result : each.value.password
+  tls_option           = try(each.value.tls_option, null)
+  auth_plugin          = try(each.value.auth_plugin, null)
+  max_user_connections = try(each.value.max_user_connections, null)
+  max_statement_time   = try(each.value.max_statement_time, null)
 }
 
 resource "mysql_grant" "owner" {

@@ -35,11 +35,14 @@ resource "random_password" "user" {
 }
 
 resource "mysql_user" "user" {
-  for_each           = local.users
-  user               = try(each.value.name, each.key)
-  host               = try(each.value.host, "%")
-  plaintext_password = try(each.value.generate_password, try(each.value.password, null) == null) ? random_password.user[each.key].result : each.value.password
-  tls_option         = try(each.value.tls_option, null)
+  for_each             = local.users
+  user                 = try(each.value.name, each.key)
+  host                 = try(each.value.host, "%")
+  plaintext_password   = try(each.value.generate_password, try(each.value.password, null) == null) ? random_password.user[each.key].result : each.value.password
+  tls_option           = try(each.value.tls_option, null)
+  auth_plugin          = try(each.value.auth_plugin, null)
+  max_user_connections = try(each.value.max_user_connections, null)
+  max_statement_time   = try(each.value.max_statement_time, null)
 }
 
 resource "mysql_grant" "readwrite" {

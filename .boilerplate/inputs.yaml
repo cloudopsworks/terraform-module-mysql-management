@@ -20,6 +20,9 @@ users: {}
 #     password: null          # (Optional, sensitive) Externally managed password. Default: generated
 #     generate_password: false # (Optional) Generate a password here. Default: true when password is omitted
 #     tls_option: "NONE"      # (Optional) MySQL TLS requirement. Default: provider default
+#     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin used for the user. Default: server default
+#     max_user_connections: 0 # (Optional) Max simultaneous connections for the user, 0 = unlimited. Default: server default
+#     max_statement_time: 0   # (Optional) Max statement execution time in seconds, 0 = unlimited. MariaDB 10.1.1+ only, not MySQL. Default: server default
 #     resource_group: "owner" # (Optional) Stable state group: owner | user. Default: derived from grant
 #     manage_grants: true     # (Optional) Manage grants in this module. Default: true
 #   app_reader:
@@ -30,6 +33,9 @@ users: {}
 #     password: null          # (Optional, sensitive) Externally managed password. Default: generated
 #     generate_password: false # (Optional) Generate a password here. Default: true when password is omitted
 #     tls_option: "NONE"      # (Optional) MySQL TLS requirement. Default: provider default
+#     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin used for the user. Default: server default
+#     max_user_connections: 0 # (Optional) Max simultaneous connections for the user, 0 = unlimited. Default: server default
+#     max_statement_time: 0   # (Optional) Max statement execution time in seconds, 0 = unlimited. MariaDB 10.1.1+ only, not MySQL. Default: server default
 #     resource_group: "user" # (Optional) Stable state group: owner | user. Default: derived from grant
 #     manage_grants: true     # (Optional) Manage grants in this module. Default: true
 
@@ -42,6 +48,9 @@ owner_users: {}
 #     password: null          # (Optional, sensitive) Externally managed password. Default: generated
 #     generate_password: false # (Optional) Generate a password here. Default: true when password is omitted
 #     tls_option: "NONE"      # (Optional) MySQL TLS requirement. Default: provider default
+#     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin used for the user. Default: server default
+#     max_user_connections: 0 # (Optional) Max simultaneous connections for the user, 0 = unlimited. Default: server default
+#     max_statement_time: 0   # (Optional) Max statement execution time in seconds, 0 = unlimited. MariaDB 10.1.1+ only, not MySQL. Default: server default
 #     databases: ["appdb"]   # (Optional) Databases to grant. Default: []
 #     manage_grants: true     # (Optional) Manage grants in this module. Default: true
 

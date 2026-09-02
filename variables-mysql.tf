@@ -30,6 +30,9 @@ variable "databases" {
 #     password: "external"       # (Optional, sensitive) Externally managed password. Default: generated.
 #     generate_password: false    # (Optional) Generate a password here. Default: true when password is omitted.
 #     tls_option: "NONE"         # (Optional) MySQL TLS requirement. Default: provider default.
+#     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin. Default: server default.
+#     max_user_connections: 0     # (Optional) Simultaneous connection limit, 0 = unlimited. Default: server default.
+#     max_statement_time: 0       # (Optional) Statement execution limit in seconds, 0 = unlimited. MariaDB 10.1.1+ only. Default: server default.
 #     resource_group: "owner"    # (Optional) Stable resource group: owner | user. Default: derived from grant.
 #     manage_grants: true         # (Optional) Whether this module manages grants. Default: true.
 variable "users" {
@@ -46,6 +49,9 @@ variable "users" {
 #     generate_password: false   # (Optional) Generate a password here. Default: true when password is omitted.
 #     host: "%"                 # (Optional) Host restriction. Default: "%".
 #     tls_option: "NONE"        # (Optional) MySQL TLS requirement. Default: provider default.
+#     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin. Default: server default.
+#     max_user_connections: 0   # (Optional) Simultaneous connection limit, 0 = unlimited. Default: server default.
+#     max_statement_time: 0     # (Optional) Statement execution limit in seconds, 0 = unlimited. MariaDB 10.1.1+ only. Default: server default.
 #     databases: ["mydb"]       # (Optional) Databases to grant when manage_grants is true. Default: [].
 #     manage_grants: true        # (Optional) Whether this module manages grants. Default: true.
 variable "owner_users" {
