@@ -28,9 +28,14 @@ variable "databases" {
 #     grant: "owner"            # (Required) Grant type: owner | readwrite | readonly.
 #     databases: ["mydb"]       # (Required) List of database names to grant access on.
 #     password: "external"       # (Optional, sensitive) Externally managed password. Default: generated.
-#     generate_password: false    # (Optional) Generate a password here. Default: true when password is omitted.
+#     generate_password: false    # (Optional) Generate a password here. Default: true when password is omitted. Forced off when auth_plugin is aad_auth/AWSAuthenticationPlugin/mysql_no_login, or when auth_string is set.
 #     tls_option: "NONE"         # (Optional) MySQL TLS requirement. Default: provider default.
-#     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin. Default: server default.
+#     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin. One of: mysql_native_password | caching_sha2_password | sha256_password | aad_auth. Default: server default.
+#     auth_string: "*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19" # (Optional, sensitive) Already-hashed authentication string for auth_plugin. Alias of auth_string_hashed. Default: null.
+#     auth_string_hashed: "*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19" # (Optional, sensitive) Already-hashed authentication string; used only when auth_string is absent. Default: null.
+#     aad_identity:                        # (Optional) Azure AD identity block. Only rendered when auth_plugin is "aad_auth"; ignored otherwise.
+#       type: "user"                       # (Optional) Identity type: user | group | service_principal. Default: provider default.
+#       identity: "app@contoso.com"        # (Required when auth_plugin is "aad_auth") Azure AD user/group name or service principal object ID.
 #     max_user_connections: 0     # (Optional) Simultaneous connection limit, 0 = unlimited. Default: server default.
 #     max_statement_time: 0       # (Optional) Statement execution limit in seconds, 0 = unlimited. MariaDB 10.1.1+ only. Default: server default.
 #     resource_group: "owner"    # (Optional) Stable resource group: owner | user. Default: derived from grant.
@@ -46,10 +51,15 @@ variable "users" {
 #   <owner_ref>:
 #     name: "database_owner"    # (Required) MySQL owner user name.
 #     password: "external"      # (Optional, sensitive) Externally managed password. Default: generated.
-#     generate_password: false   # (Optional) Generate a password here. Default: true when password is omitted.
+#     generate_password: false   # (Optional) Generate a password here. Default: true when password is omitted. Forced off when auth_plugin is aad_auth/AWSAuthenticationPlugin/mysql_no_login, or when auth_string is set.
 #     host: "%"                 # (Optional) Host restriction. Default: "%".
 #     tls_option: "NONE"        # (Optional) MySQL TLS requirement. Default: provider default.
-#     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin. Default: server default.
+#     auth_plugin: "caching_sha2_password" # (Optional) Authentication plugin. One of: mysql_native_password | caching_sha2_password | sha256_password | aad_auth. Default: server default.
+#     auth_string: "*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19" # (Optional, sensitive) Already-hashed authentication string for auth_plugin. Alias of auth_string_hashed. Default: null.
+#     auth_string_hashed: "*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19" # (Optional, sensitive) Already-hashed authentication string; used only when auth_string is absent. Default: null.
+#     aad_identity:                        # (Optional) Azure AD identity block. Only rendered when auth_plugin is "aad_auth"; ignored otherwise.
+#       type: "user"                       # (Optional) Identity type: user | group | service_principal. Default: provider default.
+#       identity: "app@contoso.com"        # (Required when auth_plugin is "aad_auth") Azure AD user/group name or service principal object ID.
 #     max_user_connections: 0   # (Optional) Simultaneous connection limit, 0 = unlimited. Default: server default.
 #     max_statement_time: 0     # (Optional) Statement execution limit in seconds, 0 = unlimited. MariaDB 10.1.1+ only. Default: server default.
 #     databases: ["mydb"]       # (Optional) Databases to grant when manage_grants is true. Default: [].

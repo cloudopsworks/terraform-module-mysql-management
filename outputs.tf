@@ -8,12 +8,12 @@
 #
 
 output "owner_passwords" {
-  description = "Map of user_ref → owner password (sensitive). Consumed by cloud modules for secret storage."
+  description = "Map of user_ref → owner password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth_plugin authenticates without a password, or that supply auth_string, are omitted."
   sensitive   = true
   value = {
     for k, v in local.owner_users : k => (
-      try(v.generate_password, try(v.password, null) == null) ? random_password.owner[k].result : v.password
-    )
+      local.owner_generate_password[k] ? random_password.owner[k].result : try(v.password, null)
+    ) if !local.owner_password_suppressed[k]
   }
 }
 
@@ -23,12 +23,12 @@ output "owner_usernames" {
 }
 
 output "user_passwords" {
-  description = "Map of user_ref → user password (sensitive). Consumed by cloud modules for secret storage."
+  description = "Map of user_ref → user password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth_plugin authenticates without a password, or that supply auth_string, are omitted."
   sensitive   = true
   value = {
     for k, v in local.users : k => (
-      try(v.generate_password, try(v.password, null) == null) ? random_password.user[k].result : v.password
-    )
+      local.user_generate_password[k] ? random_password.user[k].result : try(v.password, null)
+    ) if !local.user_password_suppressed[k]
   }
 }
 

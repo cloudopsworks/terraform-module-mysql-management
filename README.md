@@ -55,7 +55,8 @@ the `mysql` provider must be passed in from the calling (cloud-specific) module.
 Resources managed:
 - `mysql_database` — one per entry in `var.databases`
 - `mysql_user` + `random_password` — one per entry in `var.users`, with optional
-  `auth_plugin`, `max_user_connections`, and `max_statement_time` account settings
+  authentication (`auth_plugin`, `auth_string`, `aad_identity`) and resource-limit
+  (`max_user_connections`, `max_statement_time`) account settings
 - `mysql_grant` — per (user, database) pair, with privilege sets matching the grant type
 - `time_rotating` — optional, triggers password rotation after `password_rotation_period` days
 
@@ -67,12 +68,47 @@ straight through to `mysql_user`:
 | Attribute | Type | Description |
 |---|---|---|
 | `tls_option` | string | Connection TLS requirement (e.g. `NONE`, `SSL`, `X509`). Server default when omitted. |
-| `auth_plugin` | string | Authentication plugin for the account (e.g. `caching_sha2_password`, `mysql_native_password`). Server default when omitted. |
+| `auth_plugin` | string | Authentication plugin for the account. One of `mysql_native_password`, `caching_sha2_password`, `sha256_password`, `aad_auth`. Server default when omitted. |
+| `auth_string` | string (sensitive) | Already-hashed authentication string for `auth_plugin`, passed through to the provider's `auth_string_hashed`. Alias for `auth_string_hashed`. |
+| `auth_string_hashed` | string (sensitive) | Same as `auth_string`; read only when `auth_string` is absent. |
+| `aad_identity` | object | Azure AD identity, with `type` (`user`, `group`, `service_principal`) and `identity` (user/group name or service principal object ID). |
 | `max_user_connections` | number | Maximum simultaneous connections for the account. `0` means unlimited. Server default when omitted. |
 | `max_statement_time` | number | Maximum statement execution time in seconds; fractional values are allowed. `0` means unlimited. Supported on **MariaDB 10.1.1+ only**, not MySQL. Server default when omitted. |
 
-All four are omitted from the resource when unset, so existing deployments keep the server
+All of them are omitted from the resource when unset, so existing deployments keep the server
 defaults and produce no plan diff.
+
+**Password generation gate**
+
+A generated password is only useful when the account actually authenticates with one.
+Three `auth_plugin` values make the provider build the credential itself — it emits
+`CREATE AADUSER` or `IDENTIFIED WITH <plugin>` with no `BY '<password>'` clause — and a
+supplied `auth_string` *is* the credential. In those cases the module suppresses password
+generation entirely:
+
+| Condition | Password generated? | Present in `*_passwords` output? |
+|---|---|---|
+| `auth_plugin` = `aad_auth`, `AWSAuthenticationPlugin`, or `mysql_no_login` | no | no |
+| `auth_string` / `auth_string_hashed` supplied | no | no |
+| `auth_plugin` set to any other plugin (e.g. `caching_sha2_password`) | yes | yes |
+| no `auth_plugin` (default) | yes | yes |
+
+Suppressed accounts are created normally and still appear in `owner_usernames` /
+`user_usernames`; only the password is withheld. This matters because cloud wrappers write
+`owner_passwords` / `user_passwords` into a secret manager — before this gate an `aad_auth`
+account produced a stored secret that could never authenticate it. Wrappers that iterate
+those maps must tolerate a user_ref being absent.
+
+`generate_password` is not needed to opt out for these accounts; the gate applies on its own.
+It still works as before for every other account.
+
+**Azure AD authentication**
+
+The `aad_identity` block is rendered **only** when `auth_plugin` is set to `aad_auth`; it is
+ignored for every other plugin. When you select `aad_auth`, `aad_identity.identity` is required
+by the provider — an entry with `auth_plugin: aad_auth` and no `aad_identity` fails at apply
+time. This path targets Azure Database for MySQL Flexible Server, whose Microsoft Entra ID
+authentication is exposed by `petoju/mysql` through that block.
 
 **Cloud-wrapper compatibility**
 
@@ -161,10 +197,25 @@ inputs = {
       databases = ["appdb"]        # (Required) List of database names to grant access on
       # tls_option           = "NONE"  # (Optional) TLS requirement. Default: server default
       # auth_plugin          = "caching_sha2_password"
-      #                              # (Optional) Authentication plugin. Default: server default
+      #                              # (Optional) mysql_native_password | caching_sha2_password |
+      #                              #   sha256_password | aad_auth. Default: server default
+      # auth_string          = "*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19"
+      #                              # (Optional, sensitive) Already-hashed auth string for
+      #                              #   auth_plugin. Alias of auth_string_hashed
       max_user_connections = 50    # (Optional) Connection limit, 0 = unlimited. Default: server default
       # max_statement_time = 30      # (Optional) Statement limit in seconds, 0 = unlimited.
       #                              #   MariaDB 10.1.1+ only, not MySQL. Default: server default
+    }
+    app_aad = {
+      name        = "app@contoso.com"  # (Required) MySQL user name
+      host        = "%"                # (Optional) Host restriction. Default: "%"
+      grant       = "readwrite"        # (Required) Grant type
+      databases   = ["appdb"]          # (Required) List of database names to grant access on
+      auth_plugin = "aad_auth"         # (Optional) Enables the aad_identity block below
+      aad_identity = {                 # (Optional) Only sent when auth_plugin = "aad_auth"
+        type     = "user"              # (Optional) user | group | service_principal
+        identity = "app@contoso.com"   # (Required when auth_plugin = "aad_auth")
+      }
     }
     app_reader = {
       name      = "appreader"      # (Required) MySQL user name
@@ -197,9 +248,9 @@ for use by the cloud wrapper module to store passwords in a secret manager:
 
 | Output | Sensitive | Description |
 |---|---|---|
-| `owner_passwords` | yes | `map(user_ref → password)` for `owner`-grant users |
+| `owner_passwords` | yes | `map(user_ref → password)` for `owner`-grant users; omits accounts covered by the password generation gate |
 | `owner_usernames` | no | `map(user_ref → MySQL username)` for `owner`-grant users |
-| `user_passwords` | yes | `map(user_ref → password)` for `readwrite`/`readonly` users |
+| `user_passwords` | yes | `map(user_ref → password)` for `readwrite`/`readonly` users; omits accounts covered by the password generation gate |
 | `user_usernames` | no | `map(user_ref → MySQL username)` for `readwrite`/`readonly` users |
 | `databases` | no | `map(db_ref → { name })` for all managed databases |
 | `users` | no | `map(user_ref → { name, grant })` for all managed users |
@@ -239,7 +290,7 @@ Available targets:
 ## Requirements
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.7 |
 | <a name="requirement_mysql"></a> [mysql](#requirement\_mysql) | ~> 3.0 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | ~> 3.4 |
@@ -248,21 +299,21 @@ Available targets:
 ## Providers
 
 | Name | Version |
-|------|---------|
-| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | 3.0.94 |
+| ---- | ------- |
+| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | 3.0.95 |
 | <a name="provider_random"></a> [random](#provider\_random) | 3.9.0 |
 | <a name="provider_time"></a> [time](#provider\_time) | 0.14.1 |
 
 ## Modules
 
 | Name | Source | Version |
-|------|--------|---------|
+| ---- | ------ | ------- |
 | <a name="module_tags"></a> [tags](#module\_tags) | cloudopsworks/tags/local | 1.0.9 |
 
 ## Resources
 
 | Name | Type |
-|------|------|
+| ---- | ---- |
 | [mysql_database.this](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/database) | resource |
 | [mysql_grant.owner](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/grant) | resource |
 | [mysql_grant.readonly](https://registry.terraform.io/providers/petoju/mysql/latest/docs/resources/grant) | resource |
@@ -277,7 +328,7 @@ Available targets:
 ## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_databases"></a> [databases](#input\_databases) | Map of MySQL databases to create. See inline docs for full schema. | `any` | `{}` | no |
 | <a name="input_extra_tags"></a> [extra\_tags](#input\_extra\_tags) | Extra tags to add to the resources | `map(string)` | `{}` | no |
 | <a name="input_force_reset"></a> [force\_reset](#input\_force\_reset) | (Optional) Force password reset on next apply. Default: false. | `bool` | `false` | no |
@@ -291,11 +342,11 @@ Available targets:
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ---- | ----------- |
 | <a name="output_databases"></a> [databases](#output\_databases) | Map of db\_ref → { name } for all managed databases. |
-| <a name="output_owner_passwords"></a> [owner\_passwords](#output\_owner\_passwords) | Map of user\_ref → owner password (sensitive). Consumed by cloud modules for secret storage. |
+| <a name="output_owner_passwords"></a> [owner\_passwords](#output\_owner\_passwords) | Map of user\_ref → owner password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth\_plugin authenticates without a password, or that supply auth\_string, are omitted. |
 | <a name="output_owner_usernames"></a> [owner\_usernames](#output\_owner\_usernames) | Map of user\_ref → MySQL username for owner-grant users. |
-| <a name="output_user_passwords"></a> [user\_passwords](#output\_user\_passwords) | Map of user\_ref → user password (sensitive). Consumed by cloud modules for secret storage. |
+| <a name="output_user_passwords"></a> [user\_passwords](#output\_user\_passwords) | Map of user\_ref → user password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth\_plugin authenticates without a password, or that supply auth\_string, are omitted. |
 | <a name="output_user_usernames"></a> [user\_usernames](#output\_user\_usernames) | Map of user\_ref → MySQL username for non-owner users. |
 | <a name="output_users"></a> [users](#output\_users) | Map of user\_ref → { name, grant } for all managed users. |
 

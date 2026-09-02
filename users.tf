@@ -10,14 +10,14 @@
 resource "time_rotating" "user" {
   for_each = {
     for k, v in local.users : k => v
-    if try(v.generate_password, try(v.password, null) == null) && var.password_rotation_period > 0
+    if local.user_generate_password[k] && var.password_rotation_period > 0
   }
   rotation_days = var.password_rotation_period
 }
 
 resource "random_password" "user" {
   for_each = {
-    for k, v in local.users : k => v if try(v.generate_password, try(v.password, null) == null)
+    for k, v in local.users : k => v if local.user_generate_password[k]
   }
   length           = 25
   special          = true
@@ -35,14 +35,24 @@ resource "random_password" "user" {
 }
 
 resource "mysql_user" "user" {
-  for_each             = local.users
-  user                 = try(each.value.name, each.key)
-  host                 = try(each.value.host, "%")
-  plaintext_password   = try(each.value.generate_password, try(each.value.password, null) == null) ? random_password.user[each.key].result : each.value.password
+  for_each = local.users
+  user     = try(each.value.name, each.key)
+  host     = try(each.value.host, "%")
+  plaintext_password = local.user_generate_password[each.key] ? random_password.user[each.key].result : (
+    local.user_password_suppressed[each.key] ? null : try(each.value.password, null)
+  )
   tls_option           = try(each.value.tls_option, null)
-  auth_plugin          = try(each.value.auth_plugin, null)
   max_user_connections = try(each.value.max_user_connections, null)
   max_statement_time   = try(each.value.max_statement_time, null)
+  auth_plugin          = try(each.value.auth_plugin, null)
+  auth_string_hashed   = try(each.value.auth_string, each.value.auth_string_hashed, null)
+  dynamic "aad_identity" {
+    for_each = try(each.value.auth_plugin, null) == "aad_auth" ? [1] : []
+    content {
+      type     = try(each.value.aad_identity.type, null)
+      identity = try(each.value.aad_identity.identity, null)
+    }
+  }
 }
 
 resource "mysql_grant" "readwrite" {
