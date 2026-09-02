@@ -134,10 +134,31 @@ time to decide whether to write a credential at all:
 
 ```hcl
 resource "aws_secretsmanager_secret_version" "user" {
-  for_each = {
-    for k, v in var.users : k => v if module.db.user_password_managed[k]
+  for_each = var.users
+  secret_string = jsonencode(merge(
+    { username = ... },
+    module.db.user_password_managed[each.key] ? { password = module.db.user_passwords[each.key] } : {},
+  ))
+}
+```
+
+Those two outputs are derived from `var.users` / `var.owner_users`, so they depend on
+whatever the wrapper feeds those variables. A wrapper that supplies an externally managed
+`password` sourced from its *own* resource cannot then use them to gate that resource —
+the reference closes a dependency cycle. `passwordless_auth_plugins` exists for that case:
+it is a static list with no dependency on the module's inputs, so a wrapper can evaluate
+the same gate against its own configuration before deciding which password resources to
+create at all.
+
+```hcl
+locals {
+  # Same gate, evaluated wrapper-side; safe to drive for_each on password resources.
+  password_suppressed = {
+    for k, v in var.users : k => (
+      contains(module.db.passwordless_auth_plugins, try(lower(v.auth_plugin), ""))
+      || try(v.auth_string, v.auth_string_hashed, null) != null
+    )
   }
-  ...
 }
 ```
 
@@ -316,6 +337,7 @@ for use by the cloud wrapper module to store passwords in a secret manager:
 | `owner_usernames` | no | `map(user_ref → MySQL username)` for `owner`-grant users |
 | `user_passwords` | yes | `map(user_ref → password)` for `readwrite`/`readonly` users; omits accounts covered by the password generation gate |
 | `user_password_managed` | no | `map(user_ref → bool)` — `false` where the gate withheld the user password, so the ref is absent from `user_passwords` |
+| `passwordless_auth_plugins` | no | `list(string)` — the lower-cased plugin names the gate acts on |
 | `user_usernames` | no | `map(user_ref → MySQL username)` for `readwrite`/`readonly` users |
 | `databases` | no | `map(db_ref → { name })` for all managed databases |
 | `users` | no | `map(user_ref → { name, grant })` for all managed users |
@@ -413,6 +435,7 @@ Available targets:
 | <a name="output_owner_password_managed"></a> [owner\_password\_managed](#output\_owner\_password\_managed) | Map of user\_ref → whether this module holds a password for the owner account. False when auth\_plugin authenticates without a password or auth\_string is supplied, in which case the user\_ref is absent from owner\_passwords. Plan-time known, so consumers may use it in for\_each. |
 | <a name="output_owner_passwords"></a> [owner\_passwords](#output\_owner\_passwords) | Map of user\_ref → owner password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth\_plugin authenticates without a password, or that supply auth\_string, are omitted. |
 | <a name="output_owner_usernames"></a> [owner\_usernames](#output\_owner\_usernames) | Map of user\_ref → MySQL username for owner-grant users. |
+| <a name="output_passwordless_auth_plugins"></a> [passwordless\_auth\_plugins](#output\_passwordless\_auth\_plugins) | Lower-cased list of auth\_plugin values this module treats as authenticating without a stored password. Derived from a static list, so unlike owner\_password\_managed / user\_password\_managed it carries no dependency on the module's inputs and can safely drive a consumer's for\_each. |
 | <a name="output_user_password_managed"></a> [user\_password\_managed](#output\_user\_password\_managed) | Map of user\_ref → whether this module holds a password for the user account. False when auth\_plugin authenticates without a password or auth\_string is supplied, in which case the user\_ref is absent from user\_passwords. Plan-time known, so consumers may use it in for\_each. |
 | <a name="output_user_passwords"></a> [user\_passwords](#output\_user\_passwords) | Map of user\_ref → user password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth\_plugin authenticates without a password, or that supply auth\_string, are omitted. |
 | <a name="output_user_usernames"></a> [user\_usernames](#output\_user\_usernames) | Map of user\_ref → MySQL username for non-owner users. |

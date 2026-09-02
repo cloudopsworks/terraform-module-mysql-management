@@ -113,10 +113,31 @@ introduction: |-
 
   ```hcl
   resource "aws_secretsmanager_secret_version" "user" {
-    for_each = {
-      for k, v in var.users : k => v if module.db.user_password_managed[k]
+    for_each = var.users
+    secret_string = jsonencode(merge(
+      { username = ... },
+      module.db.user_password_managed[each.key] ? { password = module.db.user_passwords[each.key] } : {},
+    ))
+  }
+  ```
+
+  Those two outputs are derived from `var.users` / `var.owner_users`, so they depend on
+  whatever the wrapper feeds those variables. A wrapper that supplies an externally managed
+  `password` sourced from its *own* resource cannot then use them to gate that resource —
+  the reference closes a dependency cycle. `passwordless_auth_plugins` exists for that case:
+  it is a static list with no dependency on the module's inputs, so a wrapper can evaluate
+  the same gate against its own configuration before deciding which password resources to
+  create at all.
+
+  ```hcl
+  locals {
+    # Same gate, evaluated wrapper-side; safe to drive for_each on password resources.
+    password_suppressed = {
+      for k, v in var.users : k => (
+        contains(module.db.passwordless_auth_plugins, try(lower(v.auth_plugin), ""))
+        || try(v.auth_string, v.auth_string_hashed, null) != null
+      )
     }
-    ...
   }
   ```
 
@@ -282,6 +303,7 @@ examples: |-
   | `owner_usernames` | no | `map(user_ref → MySQL username)` for `owner`-grant users |
   | `user_passwords` | yes | `map(user_ref → password)` for `readwrite`/`readonly` users; omits accounts covered by the password generation gate |
   | `user_password_managed` | no | `map(user_ref → bool)` — `false` where the gate withheld the user password, so the ref is absent from `user_passwords` |
+  | `passwordless_auth_plugins` | no | `list(string)` — the lower-cased plugin names the gate acts on |
   | `user_usernames` | no | `map(user_ref → MySQL username)` for `readwrite`/`readonly` users |
   | `databases` | no | `map(db_ref → { name })` for all managed databases |
   | `users` | no | `map(user_ref → { name, grant })` for all managed users |

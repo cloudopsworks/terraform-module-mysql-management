@@ -61,3 +61,8 @@ output "user_password_managed" {
   description = "Map of user_ref → whether this module holds a password for the user account. False when auth_plugin authenticates without a password or auth_string is supplied, in which case the user_ref is absent from user_passwords. Plan-time known, so consumers may use it in for_each."
   value       = { for k, v in local.users : k => !local.user_password_suppressed[k] }
 }
+
+output "passwordless_auth_plugins" {
+  description = "Lower-cased list of auth_plugin values this module treats as authenticating without a stored password. Derived from a static list, so unlike owner_password_managed / user_password_managed it carries no dependency on the module's inputs and can safely drive a consumer's for_each."
+  value       = local.passwordless_auth_plugins_lower
+}
