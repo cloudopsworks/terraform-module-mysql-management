@@ -11,7 +11,7 @@
 
 | Name | Version |
 |------|---------|
-| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | 3.0.94 |
+| <a name="provider_mysql"></a> [mysql](#provider\_mysql) | 3.0.95 |
 | <a name="provider_random"></a> [random](#provider\_random) | 3.9.0 |
 | <a name="provider_time"></a> [time](#provider\_time) | 0.14.1 |
 
@@ -47,6 +47,7 @@
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
 | <a name="input_owner_users"></a> [owner\_users](#input\_owner\_users) | Optional owner-user map with an independent key space for state-compatible wrapper migrations. | `any` | `{}` | no |
 | <a name="input_password_rotation_period"></a> [password\_rotation\_period](#input\_password\_rotation\_period) | (Optional) Password rotation period in days. Default: 0. | `number` | `0` | no |
+| <a name="input_specials_in_password"></a> [specials\_in\_password](#input\_specials\_in\_password) | (Optional) Use special characters (=\_-+@~#) in generated owner/user passwords. When false, generated passwords are alphanumeric only. Default: true. | `bool` | `true` | no |
 | <a name="input_spoke_def"></a> [spoke\_def](#input\_spoke\_def) | Spoke ID Number, must be a 3 digit number | `string` | `"001"` | no |
 | <a name="input_users"></a> [users](#input\_users) | Map of MySQL users. See inline docs for full schema. | `any` | `{}` | no |
 
@@ -55,8 +56,11 @@
 | Name | Description |
 |------|-------------|
 | <a name="output_databases"></a> [databases](#output\_databases) | Map of db\_ref → { name } for all managed databases. |
-| <a name="output_owner_passwords"></a> [owner\_passwords](#output\_owner\_passwords) | Map of user\_ref → owner password (sensitive). Consumed by cloud modules for secret storage. |
+| <a name="output_owner_password_managed"></a> [owner\_password\_managed](#output\_owner\_password\_managed) | Map of user\_ref → whether this module holds a password for the owner account. False when auth\_plugin authenticates without a password or auth\_string is supplied, in which case the user\_ref is absent from owner\_passwords. Plan-time known, so consumers may use it in for\_each. |
+| <a name="output_owner_passwords"></a> [owner\_passwords](#output\_owner\_passwords) | Map of user\_ref → owner password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth\_plugin authenticates without a password, or that supply auth\_string, are omitted. |
 | <a name="output_owner_usernames"></a> [owner\_usernames](#output\_owner\_usernames) | Map of user\_ref → MySQL username for owner-grant users. |
-| <a name="output_user_passwords"></a> [user\_passwords](#output\_user\_passwords) | Map of user\_ref → user password (sensitive). Consumed by cloud modules for secret storage. |
+| <a name="output_passwordless_auth_plugins"></a> [passwordless\_auth\_plugins](#output\_passwordless\_auth\_plugins) | Lower-cased list of auth\_plugin values this module treats as authenticating without a stored password. Derived from a static list, so unlike owner\_password\_managed / user\_password\_managed it carries no dependency on the module's inputs and can safely drive a consumer's for\_each. |
+| <a name="output_user_password_managed"></a> [user\_password\_managed](#output\_user\_password\_managed) | Map of user\_ref → whether this module holds a password for the user account. False when auth\_plugin authenticates without a password or auth\_string is supplied, in which case the user\_ref is absent from user\_passwords. Plan-time known, so consumers may use it in for\_each. |
+| <a name="output_user_passwords"></a> [user\_passwords](#output\_user\_passwords) | Map of user\_ref → user password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth\_plugin authenticates without a password, or that supply auth\_string, are omitted. |
 | <a name="output_user_usernames"></a> [user\_usernames](#output\_user\_usernames) | Map of user\_ref → MySQL username for non-owner users. |
 | <a name="output_users"></a> [users](#output\_users) | Map of user\_ref → { name, grant } for all managed users. |

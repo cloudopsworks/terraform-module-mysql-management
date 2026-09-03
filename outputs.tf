@@ -8,12 +8,12 @@
 #
 
 output "owner_passwords" {
-  description = "Map of user_ref → owner password (sensitive). Consumed by cloud modules for secret storage."
+  description = "Map of user_ref → owner password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth_plugin authenticates without a password, or that supply auth_string, are omitted."
   sensitive   = true
   value = {
     for k, v in local.owner_users : k => (
-      try(v.generate_password, try(v.password, null) == null) ? random_password.owner[k].result : v.password
-    )
+      local.owner_generate_password[k] ? random_password.owner[k].result : try(v.password, null)
+    ) if !local.owner_password_suppressed[k]
   }
 }
 
@@ -23,12 +23,12 @@ output "owner_usernames" {
 }
 
 output "user_passwords" {
-  description = "Map of user_ref → user password (sensitive). Consumed by cloud modules for secret storage."
+  description = "Map of user_ref → user password (sensitive). Consumed by cloud modules for secret storage. Accounts whose auth_plugin authenticates without a password, or that supply auth_string, are omitted."
   sensitive   = true
   value = {
     for k, v in local.users : k => (
-      try(v.generate_password, try(v.password, null) == null) ? random_password.user[k].result : v.password
-    )
+      local.user_generate_password[k] ? random_password.user[k].result : try(v.password, null)
+    ) if !local.user_password_suppressed[k]
   }
 }
 
@@ -50,4 +50,19 @@ output "users" {
       grant = try(v.grant, "owner")
     }
   }
+}
+
+output "owner_password_managed" {
+  description = "Map of user_ref → whether this module holds a password for the owner account. False when auth_plugin authenticates without a password or auth_string is supplied, in which case the user_ref is absent from owner_passwords. Plan-time known, so consumers may use it in for_each."
+  value       = { for k, v in local.owner_users : k => !local.owner_password_suppressed[k] }
+}
+
+output "user_password_managed" {
+  description = "Map of user_ref → whether this module holds a password for the user account. False when auth_plugin authenticates without a password or auth_string is supplied, in which case the user_ref is absent from user_passwords. Plan-time known, so consumers may use it in for_each."
+  value       = { for k, v in local.users : k => !local.user_password_suppressed[k] }
+}
+
+output "passwordless_auth_plugins" {
+  description = "Lower-cased list of auth_plugin values this module treats as authenticating without a stored password. Derived from a static list, so unlike owner_password_managed / user_password_managed it carries no dependency on the module's inputs and can safely drive a consumer's for_each."
+  value       = local.passwordless_auth_plugins_lower
 }

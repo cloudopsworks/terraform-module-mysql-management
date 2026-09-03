@@ -33,9 +33,144 @@ introduction: |-
 
   Resources managed:
   - `mysql_database` — one per entry in `var.databases`
-  - `mysql_user` + `random_password` — one per entry in `var.users`
+  - `mysql_user` + `random_password` — one per entry in `var.users`, with optional
+    authentication (`auth_plugin`, `auth_string`, `aad_identity`) and resource-limit
+    (`max_user_connections`, `max_statement_time`) account settings; the generated password
+    alphabet is controlled by `specials_in_password`
   - `mysql_grant` — per (user, database) pair, with privilege sets matching the grant type
   - `time_rotating` — optional, triggers password rotation after `password_rotation_period` days
+
+  **User account settings**
+
+  Each entry in `users` and `owner_users` accepts optional account attributes that are passed
+  straight through to `mysql_user`:
+
+  | Attribute | Type | Description |
+  |---|---|---|
+  | `tls_option` | string | Connection TLS requirement (e.g. `NONE`, `SSL`, `X509`). Server default when omitted. |
+  | `auth_plugin` | string | Authentication plugin for the account. One of `mysql_native_password`, `caching_sha2_password`, `sha256_password`, `aad_auth`. Server default when omitted. |
+  | `auth_string` | string (sensitive) | Already-hashed authentication string for `auth_plugin`, passed through to the provider's `auth_string_hashed`. Alias for `auth_string_hashed`. |
+  | `auth_string_hashed` | string (sensitive) | Same as `auth_string`; read only when `auth_string` is absent. |
+  | `aad_identity` | object | Azure AD identity, with `type` (`user`, `group`, `service_principal`) and `identity` (user/group name or service principal object ID). |
+  | `max_user_connections` | number | Maximum simultaneous connections for the account. `0` means unlimited. Server default when omitted. |
+  | `max_statement_time` | number | Maximum statement execution time in seconds; fractional values are allowed. `0` means unlimited. Supported on **MariaDB 10.1.1+ only**, not MySQL. Server default when omitted. |
+
+  All of them are omitted from the resource when unset, so existing deployments keep the server
+  defaults and produce no plan diff.
+
+  **Password generation gate**
+
+  A generated password is only useful when the account actually authenticates with one. Many
+  authentication plugins delegate the credential to the OS, Kerberos/AD, LDAP, PAM, a hardware
+  authenticator or a cloud IAM service, and a supplied `auth_string` *is* the credential. In
+  those cases the module suppresses password generation entirely:
+
+  | Condition | Password generated? | Present in `*_passwords` output? |
+  |---|---|---|
+  | `auth_plugin` is one of the delegating plugins below | no | no |
+  | `auth_string` / `auth_string_hashed` supplied | no | no |
+  | `auth_plugin` set to any other plugin (e.g. `caching_sha2_password`) | yes | yes |
+  | no `auth_plugin` (default) | yes | yes |
+
+  The delegating set is taken from the upstream plugin references —
+  [MySQL 8.4](https://dev.mysql.com/doc/refman/8.4/en/authentication-plugins.html) and
+  [MariaDB](https://mariadb.com/docs/server/reference/plugins/authentication-plugins) — plus the
+  two cloud IAM plugins:
+
+  | Server | `auth_plugin` | Credential source |
+  |---|---|---|
+  | MySQL | `auth_socket` | OS socket peer credentials |
+  | MySQL | `authentication_kerberos` | Kerberos; takes `BY '<realm_name>'`, **not** a password |
+  | MySQL | `authentication_ldap_sasl` | LDAP directory; takes `AS '<ldap_dn>'` |
+  | MySQL | `authentication_ldap_simple` | LDAP directory; takes `AS '<ldap_dn>'` |
+  | MySQL | `authentication_pam` | PAM; takes `AS '<pam_service_name>'` |
+  | MySQL | `authentication_webauthn` | Hardware authenticator |
+  | MySQL | `authentication_windows` | Windows SSPI |
+  | MySQL | `mysql_no_login` | Login disabled outright |
+  | MariaDB | `gssapi` | Kerberos / SSPI single sign-on |
+  | MariaDB | `named_pipe` | Windows named-pipe peer credentials |
+  | MariaDB | `pam` | PAM |
+  | MariaDB | `unix_socket` | OS socket peer credentials |
+  | Azure | `aad_auth` | Microsoft Entra ID, via `aad_identity` |
+  | AWS | `AWSAuthenticationPlugin` | RDS / Aurora IAM authentication |
+
+  Plugin names are matched case-insensitively. `authentication_kerberos` is the sharpest case:
+  the provider appends `BY '<password>'`, which that plugin reads as its **realm name** — so a
+  generated password would have been written into the account's Kerberos realm.
+
+  For any plugin not listed here, set `generate_password = false` to opt out manually.
+
+  Suppressed accounts are created normally and still appear in `owner_usernames` /
+  `user_usernames`; only the password is withheld. This matters because cloud wrappers write
+  `owner_passwords` / `user_passwords` into a secret manager — before this gate an `aad_auth`
+  account produced a stored secret that could never authenticate it. Wrappers that iterate
+  those maps must tolerate a user_ref being absent.
+
+  Because the password maps are sensitive, their keys cannot drive a `for_each`. The
+  `owner_password_managed` / `user_password_managed` outputs carry the same information as
+  plain booleans derived from configuration only, so a wrapper can branch on them at plan
+  time to decide whether to write a credential at all:
+
+  ```hcl
+  resource "aws_secretsmanager_secret_version" "user" {
+    for_each = var.users
+    secret_string = jsonencode(merge(
+      { username = ... },
+      module.db.user_password_managed[each.key] ? { password = module.db.user_passwords[each.key] } : {},
+    ))
+  }
+  ```
+
+  Those two outputs are derived from `var.users` / `var.owner_users`, so they depend on
+  whatever the wrapper feeds those variables. A wrapper that supplies an externally managed
+  `password` sourced from its *own* resource cannot then use them to gate that resource —
+  the reference closes a dependency cycle. `passwordless_auth_plugins` exists for that case:
+  it is a static list with no dependency on the module's inputs, so a wrapper can evaluate
+  the same gate against its own configuration before deciding which password resources to
+  create at all.
+
+  ```hcl
+  locals {
+    # Same gate, evaluated wrapper-side; safe to drive for_each on password resources.
+    password_suppressed = {
+      for k, v in var.users : k => (
+        contains(module.db.passwordless_auth_plugins, try(lower(v.auth_plugin), ""))
+        || try(v.auth_string, v.auth_string_hashed, null) != null
+      )
+    }
+  }
+  ```
+
+  `generate_password` is not needed to opt out for these accounts; the gate applies on its own.
+  It still works as before for every other account.
+
+  **Generated password shape**
+
+  Generated passwords are 25 characters with at least two upper-case, two lower-case and two
+  numeric characters. `specials_in_password` (default `true`) adds at least two characters from
+  `=_-+@~#`; set it to `false` when a client, driver or connection string in the consuming stack
+  cannot carry special characters, and generated passwords become alphanumeric only.
+
+  `force_reset = true` replaces every generated password on the next apply. The flag is written
+  to the `keepers` of `random_password` **only while it is true** — with `force_reset = false`
+  the attribute is absent from the resource entirely. That is what makes a wrapper migration
+  clean: a cloud module that generated passwords itself can hand them to this module with a
+  `moved` block and Terraform adopts them in place, because there is no keepers change to
+  force a replacement.
+
+  > **Upgrading a consumer that already generates passwords here.** Releases up to and
+  > including `v2.3.1-alpha.2` always wrote `keepers = { force_reset = "false" }`. Adopting a
+  > release with the conditional shape drops that attribute, which Terraform plans as a
+  > replacement of every generated password. Check `terraform plan` before applying the bump on
+  > a stack where this module — rather than the wrapper — owns password generation.
+
+  **Azure AD authentication**
+
+  The `aad_identity` block is rendered **only** when `auth_plugin` is set to `aad_auth`; it is
+  ignored for every other plugin. When you select `aad_auth`, `aad_identity.identity` is required
+  by the provider — an entry with `auth_plugin: aad_auth` and no `aad_identity` fails at apply
+  time. This path targets Azure Database for MySQL Flexible Server, whose Microsoft Entra ID
+  authentication is exposed by `petoju/mysql` through that block.
 
   **Cloud-wrapper compatibility**
 
@@ -78,7 +213,7 @@ usage: |-
   ```hcl
   # terragrunt.hcl (cloud module)
   terraform {
-    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.3.0"
+    source = "git::https://github.com/cloudopsworks/terraform-module-mysql-management.git?ref=v2.3.1"
   }
 
   inputs = {
@@ -117,6 +252,27 @@ usage: |-
         host      = "%"              # (Optional) Host restriction. Default: "%"
         grant     = "readwrite"      # (Required) Grant type
         databases = ["appdb"]        # (Required) List of database names to grant access on
+        # tls_option           = "NONE"  # (Optional) TLS requirement. Default: server default
+        # auth_plugin          = "caching_sha2_password"
+        #                              # (Optional) mysql_native_password | caching_sha2_password |
+        #                              #   sha256_password | aad_auth. Default: server default
+        # auth_string          = "*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19"
+        #                              # (Optional, sensitive) Already-hashed auth string for
+        #                              #   auth_plugin. Alias of auth_string_hashed
+        max_user_connections = 50    # (Optional) Connection limit, 0 = unlimited. Default: server default
+        # max_statement_time = 30      # (Optional) Statement limit in seconds, 0 = unlimited.
+        #                              #   MariaDB 10.1.1+ only, not MySQL. Default: server default
+      }
+      app_aad = {
+        name        = "app@contoso.com"  # (Required) MySQL user name
+        host        = "%"                # (Optional) Host restriction. Default: "%"
+        grant       = "readwrite"        # (Required) Grant type
+        databases   = ["appdb"]          # (Required) List of database names to grant access on
+        auth_plugin = "aad_auth"         # (Optional) Enables the aad_identity block below
+        aad_identity = {                 # (Optional) Only sent when auth_plugin = "aad_auth"
+          type     = "user"              # (Optional) user | group | service_principal
+          identity = "app@contoso.com"   # (Required when auth_plugin = "aad_auth")
+        }
       }
       app_reader = {
         name      = "appreader"      # (Required) MySQL user name
@@ -131,6 +287,7 @@ usage: |-
 
     password_rotation_period = 90    # (Optional) Days between password rotations. Default: 0 (disabled)
     force_reset              = false # (Optional) Force password reset on next apply. Default: false
+    specials_in_password     = true  # (Optional) Use =_-+@~# in generated passwords. Default: true
   }
   ```
 
@@ -141,9 +298,12 @@ examples: |-
 
   | Output | Sensitive | Description |
   |---|---|---|
-  | `owner_passwords` | yes | `map(user_ref → password)` for `owner`-grant users |
+  | `owner_passwords` | yes | `map(user_ref → password)` for `owner`-grant users; omits accounts covered by the password generation gate |
+  | `owner_password_managed` | no | `map(user_ref → bool)` — `false` where the gate withheld the owner password, so the ref is absent from `owner_passwords` |
   | `owner_usernames` | no | `map(user_ref → MySQL username)` for `owner`-grant users |
-  | `user_passwords` | yes | `map(user_ref → password)` for `readwrite`/`readonly` users |
+  | `user_passwords` | yes | `map(user_ref → password)` for `readwrite`/`readonly` users; omits accounts covered by the password generation gate |
+  | `user_password_managed` | no | `map(user_ref → bool)` — `false` where the gate withheld the user password, so the ref is absent from `user_passwords` |
+  | `passwordless_auth_plugins` | no | `list(string)` — the lower-cased plugin names the gate acts on |
   | `user_usernames` | no | `map(user_ref → MySQL username)` for `readwrite`/`readonly` users |
   | `databases` | no | `map(db_ref → { name })` for all managed databases |
   | `users` | no | `map(user_ref → { name, grant })` for all managed users |
